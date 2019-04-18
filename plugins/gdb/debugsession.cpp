@@ -142,6 +142,8 @@ void DebugSession::configInferior(ILaunchConfiguration *cfg, IExecutePlugin *iex
     bool breakOnStart = grp.readEntry(KDevMI::Config::BreakOnStartEntry, false);
     bool displayStaticMembers = grp.readEntry(Config::StaticMembersEntry, false);
     bool asmDemangle = grp.readEntry(Config::DemangleNamesEntry, true);
+    bool ignoreDefaultLibs = grp.readEntry(Config::IgnoreDefaultLibraryes, false);
+    bool catchThrow = grp.readEntry(Config::CatchThrow, false);
 
     if (breakOnStart) {
         BreakpointModel* m = ICore::self()->debugController()->breakpointModel();
@@ -185,6 +187,16 @@ void DebugSession::configInferior(ILaunchConfiguration *cfg, IExecutePlugin *iex
     const auto& envvars = environmentProfiles.createEnvironment(envProfileName, {});
     for (const auto& envvar : envvars) {
         addCommand(GdbSet, QLatin1String("environment ") + envvar);
+    }
+
+    if (ignoreDefaultLibs)
+    {
+        addUserCommand(QStringLiteral("skip -gfi /usr/include/c++/7/bits/*.h"));
+    }
+
+    if (catchThrow)
+    {
+        addUserCommand(QStringLiteral("catch throw"));
     }
 
     qCDebug(DEBUGGERGDB) << "Per inferior configuration done";

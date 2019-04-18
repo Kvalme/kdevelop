@@ -60,6 +60,7 @@ GdbConfigPage::GdbConfigPage( QWidget* parent )
     connect(ui->kcfg_runGdbScript, &KUrlRequester::textChanged, this, &GdbConfigPage::changed);
     connect(ui->kcfg_runShellScript, &KUrlRequester::textChanged, this, &GdbConfigPage::changed);
     connect(ui->kcfg_startWith, QOverload<int>::of(&QComboBox::currentIndexChanged), this, &GdbConfigPage::changed);
+    connect(ui->kcfg_ignoreStandartLibs, &QCheckBox::toggled, this, &GdbConfigPage::changed);
 
     //Setup data info for combobox
     ui->kcfg_startWith->setItemData(0, QStringLiteral("ApplicationOutput"));
@@ -88,6 +89,8 @@ void GdbConfigPage::loadFromConfiguration( const KConfigGroup& cfg, KDevelop::IP
     ui->kcfg_displayStaticMembers->setChecked( cfg.readEntry( Config::StaticMembersEntry, false ) );
     ui->kcfg_asmDemangle->setChecked( cfg.readEntry( Config::DemangleNamesEntry, true) );
     ui->kcfg_startWith->setCurrentIndex( ui->kcfg_startWith->findData( cfg.readEntry( KDevMI::Config::StartWithEntry, "ApplicationOutput" ) ) );
+    ui->kcfg_ignoreStandartLibs->setChecked(cfg.readEntry( Config::IgnoreDefaultLibraryes, false) );
+    ui->kcfg_catchExceptions->setChecked(cfg.readEntry(Config::CatchThrow, true));
     blockSignals( block );
 }
 
@@ -101,6 +104,8 @@ void GdbConfigPage::saveToConfiguration( KConfigGroup cfg, KDevelop::IProject* )
     cfg.writeEntry(Config::StaticMembersEntry, ui->kcfg_displayStaticMembers->isChecked() );
     cfg.writeEntry(Config::DemangleNamesEntry, ui->kcfg_asmDemangle->isChecked() );
     cfg.writeEntry(KDevMI::Config::StartWithEntry, ui->kcfg_startWith->itemData( ui->kcfg_startWith->currentIndex() ).toString() );
+    cfg.writeEntry(Config::IgnoreDefaultLibraryes, ui->kcfg_ignoreStandartLibs->isChecked() );
+    cfg.writeEntry(Config::CatchThrow, ui->kcfg_catchExceptions->isChecked() );
 }
 
 QString GdbConfigPage::title() const

@@ -75,6 +75,8 @@ static const char RemoteGdbRunEntry[] = "Remote GDB Run Script";
 static const char StaticMembersEntry[] = "Display Static Members";
 static const char DemangleNamesEntry[] = "Display Demangle Names";
 static const char AllowForcedBPEntry[] = "Allow Forced Breakpoint Set";
+static const char IgnoreDefaultLibraryes[] = "Ignore default libraryes";
+static const char CatchThrow[] = "Catch all C++ exceptions";
 }
 }
 
