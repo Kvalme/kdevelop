@@ -33,8 +33,11 @@ class MesonTarget;
 class MesonTargets;
 class MesonTargetSources;
 
+class KDirWatch;
+
 using MesonSourcePtr = std::shared_ptr<MesonTargetSources>;
 using MesonTargetsPtr = std::shared_ptr<MesonTargets>;
+using KDirWatchPtr = std::shared_ptr<KDirWatch>;
 
 class MesonManager : public KDevelop::AbstractFileManagerPlugin, public KDevelop::IBuildSystemManager
 {
@@ -68,6 +71,8 @@ public:
     KDevelop::IProjectFileManager::Features features() const override;
     KDevelop::ProjectFolderItem* createFolderItem(KDevelop::IProject* project, const KDevelop::Path& path,
                                                   KDevelop::ProjectBaseItem* parent = nullptr) override;
+
+    bool reload(KDevelop::ProjectFolderItem* item) override;
 
     // ***********
     // * IPlugin *
@@ -108,12 +113,16 @@ public:
     }
     bool removeFilesFromTargets(const QList<KDevelop::ProjectFileItem*>& /*files*/) override { return false; }
 
-    KDevelop::Path compiler(KDevelop::ProjectTargetItem * p) const override;
+    KDevelop::Path compiler(KDevelop::ProjectTargetItem* p) const override;
+
+private:
+    void onMesonInfoChanged(QString path, QString projectName);
 
 private:
     MesonBuilder* m_builder;
     QHash<KDevelop::IProject*, MesonTargetsPtr> m_projectTargets;
     QHash<KDevelop::IProject*, MesonTestSuitesPtr> m_projectTestSuites;
+    QHash<KDevelop::IProject*, KDirWatchPtr> m_projectWatchers;
 
     MesonSourcePtr sourceFromItem(KDevelop::ProjectBaseItem* item) const;
     void populateTargets(KDevelop::ProjectFolderItem* item, QVector<MesonTarget*> targets);

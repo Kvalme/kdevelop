@@ -20,22 +20,25 @@
 
 #include "mesonmanager.h"
 
+#include "debug.h"
 #include "mesonbuilder.h"
 #include "mesonconfig.h"
 #include "mesonintrospectjob.h"
 #include "mesontargets.h"
-#include "debug.h"
 #include "settings/mesonconfigpage.h"
 #include "settings/mesonnewbuilddir.h"
 
 #include <interfaces/icore.h>
 #include <interfaces/iproject.h>
+#include <interfaces/iprojectcontroller.h>
+#include <interfaces/iruncontroller.h>
 #include <interfaces/itestcontroller.h>
 #include <project/projectconfigpage.h>
 #include <project/projectmodel.h>
 #include <util/executecompositejob.h>
 
 #include <KConfigGroup>
+#include <KDirWatch>
 #include <KLocalizedString>
 #include <KPluginFactory>
 #include <QFileDialog>
@@ -109,6 +112,34 @@ ProjectFolderItem* MesonManager::createFolderItem(IProject* project, const Path&
         return AbstractFileManagerPlugin::createFolderItem(project, path, parent);
 }
 
+bool MesonManager::reload(KDevelop::ProjectFolderItem* item)
+{
+    // "Inspired" by CMakeManager::reload
+
+    IProject* project = item->project();
+    if (!project->isReady()) {
+        return false;
+    }
+
+    qCDebug(KDEV_Meson) << "reloading meson project" << project->name() << "; Path:" << item->path();
+
+    KJob* job = createImportJob(item);
+    project->setReloadJob(job);
+    ICore::self()->runController()->registerJob(job);
+    if (item == project->projectItem()) {
+        connect(job, &KJob::finished, this, [project](KJob* job) -> void {
+            if (job->error()) {
+                return;
+            }
+
+            KDevelop::ICore::self()->projectController()->projectConfigurationChanged(project);
+            KDevelop::ICore::self()->projectController()->reparseProject(project);
+        });
+    }
+
+    return true;
+}
+
 // ***************************
 // * IBuildSystemManager API *
 // ***************************
@@ -160,19 +191,67 @@ QList<ProjectTargetItem*> MesonManager::targets(ProjectFolderItem* item) const
     return res;
 }
 
+void MesonManager::onMesonInfoChanged(QString path, QString projectName)
+{
+    qCDebug(KDEV_Meson) << "File" << path << "changed --> reparsing project";
+    IProject* foundProject = ICore::self()->projectController()->findProjectByName(projectName);
+    if (!foundProject) {
+        return;
+    }
+
+    KJob* job = createImportJob(foundProject->projectItem());
+    foundProject->setReloadJob(job);
+    ICore::self()->runController()->registerJob(job);
+    connect(job, &KJob::finished, this, [foundProject](KJob* job) -> void {
+        if (job->error()) {
+            return;
+        }
+
+        KDevelop::ICore::self()->projectController()->projectConfigurationChanged(foundProject);
+        KDevelop::ICore::self()->projectController()->reparseProject(foundProject);
+    });
+}
+
 KJob* MesonManager::createImportJob(ProjectFolderItem* item)
 {
     IProject* project = item->project();
+    Q_ASSERT(project);
+
     auto buildDir = Meson::currentBuildDir(project);
     auto introJob
         = new MesonIntrospectJob(project, buildDir, { MesonIntrospectJob::TARGETS, MesonIntrospectJob::TESTS },
                                  MesonIntrospectJob::BUILD_DIR, this);
+
+    KDirWatchPtr watcher = m_projectWatchers[project];
+    if (!watcher) {
+        // Create a new watcher
+        watcher = m_projectWatchers[project] = make_shared<KDirWatch>(nullptr);
+        QString projectName = project->name();
+
+        connect(watcher.get(), &KDirWatch::dirty, this, [=](QString p) { onMesonInfoChanged(p, projectName); });
+        connect(watcher.get(), &KDirWatch::created, this, [=](QString p) { onMesonInfoChanged(p, projectName); });
+    }
+
+    Path watchFile = buildDir.buildDir;
+    watchFile.addPath(QStringLiteral("meson-info"));
+    watchFile.addPath(QStringLiteral("meson-info.json"));
+    if (!watcher->contains(watchFile.path())) {
+        qCDebug(KDEV_Meson) << "Start watching file" << watchFile;
+        watcher->addFile(watchFile.path());
+    }
 
     connect(introJob, &KJob::result, this, [this, introJob, item, project]() {
         auto targets = introJob->targets();
         auto tests = introJob->tests();
         if (!targets || !tests) {
             return;
+        }
+
+        // Remove old test suites before deleting them
+        if (m_projectTestSuites[project]) {
+            for (auto i : m_projectTestSuites[project]->testSuites()) {
+                ICore::self()->testController()->removeTestSuite(i.get());
+            }
         }
 
         m_projectTargets[project] = targets;
@@ -190,11 +269,15 @@ KJob* MesonManager::createImportJob(ProjectFolderItem* item)
         }
     });
 
-    const QList<KJob*> jobs = {
-        builder()->configure(project), // Make sure the project is configured
-        AbstractFileManagerPlugin::createImportJob(item), // generate the file system listing
-        introJob // Load targets from the build directory introspection files
-    };
+    QList<KJob*> jobs;
+
+    // Configure the project if necessary
+    if (m_builder->evaluateBuildDirectory(buildDir.buildDir, buildDir.mesonBackend) != MesonBuilder::MESON_CONFIGURED) {
+        jobs << builder()->configure(project);
+    }
+
+    jobs << AbstractFileManagerPlugin::createImportJob(item); // generate the file system listing
+    jobs << introJob;
 
     Q_ASSERT(!jobs.contains(nullptr));
     auto composite = new ExecuteCompositeJob(this, jobs);
