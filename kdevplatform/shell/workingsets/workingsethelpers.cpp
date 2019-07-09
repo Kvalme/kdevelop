@@ -31,7 +31,7 @@
 namespace KDevelop {
 
 MainWindow* mainWindow() {
-    auto* window = dynamic_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
+    auto* window = qobject_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
     Q_ASSERT(window);
     return window;
 }
@@ -40,9 +40,10 @@ void filterViews(const QSet< QString >& keepFiles)
 {
     MainWindow* window = mainWindow();
 
-    foreach(Sublime::View* view, window->area()->views()) {
+    const auto views = window->area()->views();
+    for (Sublime::View* view : views) {
 
-        auto* partDoc = dynamic_cast<PartDocument*>(view->document());
+        auto* partDoc = qobject_cast<PartDocument*>(view->document());
         if(partDoc && !keepFiles.contains(partDoc->documentSpecifier())) {
             if(view->document()->views().count() == 1) {
                 partDoc->close();

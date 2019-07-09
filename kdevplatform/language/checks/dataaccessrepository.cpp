@@ -26,7 +26,7 @@ public:
 };
 
 DataAccessRepository::DataAccessRepository()
-    : d(new DataAccessRepositoryPrivate)
+    : d_ptr(new DataAccessRepositoryPrivate)
 {}
 
 DataAccessRepository::~DataAccessRepository()
@@ -37,32 +37,44 @@ DataAccessRepository::~DataAccessRepository()
 void DataAccessRepository::addModification(const CursorInRevision& cursor, DataAccess::DataAccessFlags flags,
                                            const KDevelop::RangeInRevision& range)
 {
+    Q_D(DataAccessRepository);
+
     Q_ASSERT(!range.isValid() || flags == DataAccess::Write);
     d->m_modifications.append(new DataAccess(cursor, flags, range));
 }
 
 void DataAccessRepository::clear()
 {
+    Q_D(DataAccessRepository);
+
     qDeleteAll(d->m_modifications);
     d->m_modifications.clear();
 }
 
-QList<DataAccess*> DataAccessRepository::modifications() const { return d->m_modifications; }
+QList<DataAccess*> DataAccessRepository::modifications() const
+{
+    Q_D(const DataAccessRepository);
+
+    return d->m_modifications;
+}
 
 DataAccess* DataAccessRepository::accessAt(const CursorInRevision& cursor) const
 {
-    foreach (DataAccess* a, d->m_modifications) {
-        if (a->pos() == cursor)
-            return a;
-    }
+    Q_D(const DataAccessRepository);
 
-    return nullptr;
+    auto it = std::find_if(d->m_modifications.constBegin(), d->m_modifications.constEnd(), [&](DataAccess* a) {
+        return (a->pos() == cursor);
+    });
+
+    return (it != d->m_modifications.constEnd()) ? *it : nullptr;
 }
 
 QList<DataAccess*> DataAccessRepository::accessesInRange(const RangeInRevision& range) const
 {
+    Q_D(const DataAccessRepository);
+
     QList<DataAccess*> ret;
-    foreach (DataAccess* a, d->m_modifications) {
+    for (DataAccess* a : qAsConst(d->m_modifications)) {
         if (range.contains(a->pos()))
             ret += a;
     }

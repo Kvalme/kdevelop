@@ -840,7 +840,7 @@ struct CreateOutlineDialog
         //Select the declaration that contains the cursor
         if (cursorDecl && dialog) {
             int num = 0;
-            foreach (const DUChainItem& item, items) {
+            for (const DUChainItem& item : qAsConst(items)) {
                 if (item.m_item.data() == cursorDecl) {
                     QModelIndex index(model->index(num, 0, QModelIndex()));
                     // Need to invoke the scrolling later. If we did it now, then it wouldn't have any effect,
@@ -1084,7 +1084,7 @@ bool QuickOpenLineEdit::eventFilter(QObject* obj, QEvent* e)
         break;
     }
     case QEvent::FocusIn:
-        if (dynamic_cast<QWidget*>(obj)) {
+        if (qobject_cast<QWidget*>(obj)) {
             auto* focusEvent = dynamic_cast<QFocusEvent*>(e);
             Q_ASSERT(focusEvent);
             //Eat the focus event, keep the focus

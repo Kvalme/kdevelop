@@ -29,6 +29,7 @@
 
 #include <KTextEditor/MovingInterface>
 #include <KTextEditor/MarkInterface>
+#include <ktexteditor_version.h>
 
 #include <interfaces/icore.h>
 #include <interfaces/idocument.h>
@@ -272,19 +273,23 @@ bool PatchHighlighter::isRemoval( Diff2::Difference* diff ) {
 
 void PatchHighlighter::performContentChange( KTextEditor::Document* doc, const QStringList& oldLines, const QStringList& newLines, int editLineNumber ) {
     QPair<QList<Diff2::Difference*>, QList<Diff2::Difference*> > diffChange = m_model->linesChanged( oldLines, newLines, editLineNumber );
-    QList<Diff2::Difference*> inserted = diffChange.first;
-    QList<Diff2::Difference*> removed = diffChange.second;
+    const QList<Diff2::Difference*>& inserted = diffChange.first;
+    const QList<Diff2::Difference*>& removed = diffChange.second;
 
-    foreach(Diff2::Difference* d, removed) {
-        foreach(Diff2::DifferenceString* s, d->sourceLines())
+    for (Diff2::Difference* d : removed) {
+        const auto sourceLines = d->sourceLines();
+        for (Diff2::DifferenceString* s : sourceLines)
             qCDebug(PLUGIN_PATCHREVIEW) << "removed source" << s->string();
-        foreach(Diff2::DifferenceString* s, d->destinationLines())
+        const auto destinationLines = d->destinationLines();
+        for (Diff2::DifferenceString* s : destinationLines)
             qCDebug(PLUGIN_PATCHREVIEW) << "removed destination" << s->string();
     }
-    foreach(Diff2::Difference* d, inserted) {
-        foreach(Diff2::DifferenceString* s, d->sourceLines())
+    for (Diff2::Difference* d : inserted) {
+        const auto sourceLines = d->sourceLines();
+        for (Diff2::DifferenceString* s : sourceLines)
             qCDebug(PLUGIN_PATCHREVIEW) << "inserted source" << s->string();
-        foreach(Diff2::DifferenceString* s, d->destinationLines())
+        const auto destinationLines = d->destinationLines();
+        for (Diff2::DifferenceString* s : destinationLines)
             qCDebug(PLUGIN_PATCHREVIEW) << "inserted destination" << s->string();
     }
 
@@ -302,11 +307,11 @@ void PatchHighlighter::performContentChange( KTextEditor::Document* doc, const Q
     }
     qDeleteAll(removed);
 
-    auto* moving = dynamic_cast<KTextEditor::MovingInterface*>( doc );
+    auto* moving = qobject_cast<KTextEditor::MovingInterface*>(doc);
     if ( !moving )
         return;
 
-    foreach( Diff2::Difference* diff, inserted ) {
+    for (Diff2::Difference* diff : inserted) {
         int lineStart = diff->destinationLineNumber();
         if ( lineStart > 0 ) {
             --lineStart;
@@ -391,23 +396,28 @@ void PatchHighlighter::documentReloaded(KTextEditor::Document* doc)
     //The document was loaded / reloaded
     if ( !m_model->differences() )
         return;
-    auto* moving = dynamic_cast<KTextEditor::MovingInterface*>( doc );
+    auto* moving = qobject_cast<KTextEditor::MovingInterface*>(doc);
     if ( !moving )
         return;
 
-    auto* markIface = dynamic_cast<KTextEditor::MarkInterface*>( doc );
+    auto* markIface = qobject_cast<KTextEditor::MarkInterface*>(doc);
     if( !markIface )
         return;
 
     clear();
 
+#if KTEXTEDITOR_VERSION >= QT_VERSION_CHECK(5,50,0)
+    constexpr int markPixmapSize = 32;
+#else
+    constexpr int markPixmapSize = 16;
+#endif
     KColorScheme scheme( QPalette::Active );
 
-    QImage tintedInsertion = QIcon::fromTheme( QStringLiteral("insert-text") ).pixmap( 16, 16 ).toImage();
+    QImage tintedInsertion = QIcon::fromTheme(QStringLiteral("insert-text")).pixmap(markPixmapSize, markPixmapSize).toImage();
     KIconEffect::colorize( tintedInsertion, scheme.foreground( KColorScheme::NegativeText ).color(), 1.0 );
-    QImage tintedRemoval = QIcon::fromTheme( QStringLiteral("edit-delete") ).pixmap( 16, 16 ).toImage();
+    QImage tintedRemoval = QIcon::fromTheme(QStringLiteral("edit-delete")).pixmap(markPixmapSize, markPixmapSize).toImage();
     KIconEffect::colorize( tintedRemoval, scheme.foreground( KColorScheme::NegativeText ).color(), 1.0 );
-    QImage tintedChange = QIcon::fromTheme( QStringLiteral("text-field") ).pixmap( 16, 16 ).toImage();
+    QImage tintedChange = QIcon::fromTheme(QStringLiteral("text-field")).pixmap(markPixmapSize, markPixmapSize).toImage();
     KIconEffect::colorize( tintedChange, scheme.foreground( KColorScheme::NegativeText ).color(), 1.0 );
 
     markIface->setMarkDescription( KTextEditor::MarkInterface::markType22, i18n( "Insertion" ) );
@@ -418,11 +428,11 @@ void PatchHighlighter::documentReloaded(KTextEditor::Document* doc)
     markIface->setMarkPixmap( KTextEditor::MarkInterface::markType24, QPixmap::fromImage( tintedChange ) );
 
     markIface->setMarkDescription( KTextEditor::MarkInterface::markType25, i18n( "Insertion" ) );
-    markIface->setMarkPixmap( KTextEditor::MarkInterface::markType25, QIcon::fromTheme( QStringLiteral("insert-text") ).pixmap( 16, 16 ) );
+    markIface->setMarkPixmap(KTextEditor::MarkInterface::markType25, QIcon::fromTheme(QStringLiteral("insert-text")).pixmap(markPixmapSize, markPixmapSize));
     markIface->setMarkDescription( KTextEditor::MarkInterface::markType26, i18n( "Removal" ) );
-    markIface->setMarkPixmap( KTextEditor::MarkInterface::markType26, QIcon::fromTheme( QStringLiteral("edit-delete") ).pixmap( 16, 16 ) );
+    markIface->setMarkPixmap(KTextEditor::MarkInterface::markType26, QIcon::fromTheme(QStringLiteral("edit-delete")).pixmap(markPixmapSize, markPixmapSize));
     markIface->setMarkDescription( KTextEditor::MarkInterface::markType27, i18n( "Change" ) );
-    markIface->setMarkPixmap( KTextEditor::MarkInterface::markType27, QIcon::fromTheme( QStringLiteral("text-field") ).pixmap( 16, 16 ) );
+    markIface->setMarkPixmap(KTextEditor::MarkInterface::markType27, QIcon::fromTheme(QStringLiteral("text-field")).pixmap(markPixmapSize, markPixmapSize));
 
     for ( Diff2::DifferenceList::const_iterator it = m_model->differences()->constBegin(); it != m_model->differences()->constEnd(); ++it ) {
         Diff2::Difference* diff = *it;
@@ -549,11 +559,11 @@ PatchHighlighter::PatchHighlighter( Diff2::DiffModel* model, IDocument* kdoc, Pa
 }
 
 void PatchHighlighter::removeLineMarker( KTextEditor::MovingRange* range ) {
-    auto* moving = dynamic_cast<KTextEditor::MovingInterface*>( range->document() );
+    auto* moving = qobject_cast<KTextEditor::MovingInterface*>(range->document());
     if ( !moving )
         return;
 
-    auto* markIface = dynamic_cast<KTextEditor::MarkInterface*>( range->document() );
+    auto* markIface = qobject_cast<KTextEditor::MarkInterface*>(range->document());
     if( !markIface )
         return;
 
@@ -573,11 +583,11 @@ void PatchHighlighter::removeLineMarker( KTextEditor::MovingRange* range ) {
 }
 
 void PatchHighlighter::addLineMarker( KTextEditor::MovingRange* range, Diff2::Difference* diff ) {
-    auto* moving = dynamic_cast<KTextEditor::MovingInterface*>( range->document() );
+    auto* moving = qobject_cast<KTextEditor::MovingInterface*>(range->document());
     if ( !moving )
         return;
 
-    auto* markIface = dynamic_cast<KTextEditor::MarkInterface*>( range->document() );
+    auto* markIface = qobject_cast<KTextEditor::MarkInterface*>(range->document());
     if( !markIface )
         return;
 
@@ -650,15 +660,16 @@ void PatchHighlighter::clear() {
     if( m_ranges.empty() )
         return;
 
-    auto* moving = dynamic_cast<KTextEditor::MovingInterface*>( m_doc->textDocument() );
+    auto* moving = qobject_cast<KTextEditor::MovingInterface*>(m_doc->textDocument());
     if ( !moving )
         return;
 
-    auto* markIface = dynamic_cast<KTextEditor::MarkInterface*>( m_doc->textDocument() );
+    auto* markIface = qobject_cast<KTextEditor::MarkInterface*>(m_doc->textDocument());
     if( !markIface )
         return;
 
-    foreach( int line, markIface->marks().keys() ) {
+    const auto lines = markIface->marks().keys();
+    for (int line : lines) {
         markIface->removeMark( line, m_allmarks );
     }
 

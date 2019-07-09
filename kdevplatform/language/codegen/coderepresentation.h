@@ -72,6 +72,9 @@ struct EditorDisableReplaceTabs
         return QStringLiteral("replace-tabs");
     }
 
+private:
+    Q_DISABLE_COPY(EditorDisableReplaceTabs)
+
     KTextEditor::ConfigInterface* m_iface;
     int m_count;
     QVariant m_oldReplaceTabs;
@@ -176,6 +179,8 @@ public:
      */
     InsertArtificialCodeRepresentation(const IndexedString& file, const QString& text);
     ~InsertArtificialCodeRepresentation();
+    InsertArtificialCodeRepresentation(const InsertArtificialCodeRepresentation&) = delete;
+    InsertArtificialCodeRepresentation& operator=(const InsertArtificialCodeRepresentation&) = delete;
 
     void setText(const QString& text);
     QString text() const;
@@ -185,9 +190,6 @@ public:
     IndexedString file();
 
 private:
-    InsertArtificialCodeRepresentation(const InsertArtificialCodeRepresentation&);
-    InsertArtificialCodeRepresentation& operator=(const InsertArtificialCodeRepresentation&);
-
     IndexedString m_file;
 };
 

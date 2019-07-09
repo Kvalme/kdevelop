@@ -26,6 +26,8 @@
 #include <interfaces/quickopendataprovider.h>
 
 namespace KDevelop {
+class QuickOpenEmbeddedWidgetCombinerPrivate;
+
 /**
  * A widget that implements the QuickOpenEmbeddedWidgetInterface by asking its direct children.
  *
@@ -34,6 +36,9 @@ namespace KDevelop {
  */
 class KDEVPLATFORMLANGUAGE_EXPORT QuickOpenEmbeddedWidgetCombiner : public QWidget, public QuickOpenEmbeddedWidgetInterface
 {
+    Q_OBJECT
+    Q_INTERFACES(KDevelop::QuickOpenEmbeddedWidgetInterface)
+
 public:
     explicit QuickOpenEmbeddedWidgetCombiner(QWidget* parent = nullptr);
     ~QuickOpenEmbeddedWidgetCombiner() override;
@@ -47,8 +52,8 @@ public:
     void resetNavigationState() override;
 
 private:
-    struct Private;
-    QScopedPointer<Private> d;
+    const QScopedPointer<QuickOpenEmbeddedWidgetCombinerPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(QuickOpenEmbeddedWidgetCombiner)
 };
 }
 

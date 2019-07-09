@@ -55,7 +55,7 @@ ExpandingWidgetModel::~ExpandingWidgetModel()
 
 static QColor doAlternate(const QColor& color)
 {
-    QColor background = QApplication::palette().background().color();
+    QColor background = QApplication::palette().window().color();
     return KColorUtils::mix(color, background, 0.15);
 }
 
@@ -148,7 +148,7 @@ void ExpandingWidgetModel::clearExpanding()
 {
     clearMatchQualities();
     QMap<QModelIndex, ExpandingWidgetModel::ExpandingType> oldExpandState = m_expandState;
-    foreach (QPointer<QWidget> widget, m_expandingWidgets) {
+    for (auto& widget : qAsConst(m_expandingWidgets)) {
         delete widget;
     }
 
@@ -413,7 +413,7 @@ int ExpandingWidgetModel::basicRowHeight(const QModelIndex& idx_) const
 
     QModelIndex idx(firstColumn(idx_));
 
-    auto* delegate = dynamic_cast<ExpandingDelegate*>(treeView()->itemDelegate(idx));
+    auto* delegate = qobject_cast<ExpandingDelegate*>(treeView()->itemDelegate(idx));
     if (!delegate || !idx.isValid()) {
         qCDebug(PLUGIN_QUICKOPEN) << "ExpandingWidgetModel::basicRowHeight: Could not get delegate";
         return 15;

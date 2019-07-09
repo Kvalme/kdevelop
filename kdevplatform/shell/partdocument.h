@@ -29,6 +29,7 @@ class Part;
 }
 
 namespace KDevelop {
+class PartDocumentPrivate;
 
 /**
 The generic document which represents KParts.
@@ -41,6 +42,8 @@ and sets part widget to be a view widget.
 */
 class KDEVPLATFORMSHELL_EXPORT PartDocument: public Sublime::UrlDocument, public KDevelop::IDocument {
     Q_OBJECT
+    Q_INTERFACES(KDevelop::IDocument)
+
 public:
     PartDocument(const QUrl &url, ICore* core, const QString& preferredPart = QString() );
     ~PartDocument() override;
@@ -79,7 +82,8 @@ protected:
     void addPartForView(QWidget* widget, KParts::Part* part);
     
 private:
-    const QScopedPointer<class PartDocumentPrivate> d;
+    const QScopedPointer<class PartDocumentPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(PartDocument)
 };
 
 }

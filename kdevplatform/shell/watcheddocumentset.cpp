@@ -140,7 +140,8 @@ private:
             return;
 
         visitedContexts.insert(context);
-        foreach (const DUContext::Import& ctx, context->importedParentContexts()) {
+        const auto importedParentContexts = context->importedParentContexts();
+        for (const DUContext::Import& ctx : importedParentContexts) {
             auto* topCtx = dynamic_cast<TopDUContext*>(ctx.context(nullptr));
 
             if (topCtx)
@@ -154,13 +155,13 @@ private:
         QSet<TopDUContext*> visitedContexts;
 
         m_imports.clear();
-        foreach (const IndexedString& doc, m_documents) {
+        for (const IndexedString& doc : qAsConst(m_documents)) {
             TopDUContext* ctx = DUChain::self()->chainForDocument(doc);
             getImportsFromDU(ctx, visitedContexts);
             visitedContexts.remove(ctx);
         }
 
-        foreach (TopDUContext* ctx, visitedContexts) {
+        for (TopDUContext* ctx : qAsConst(visitedContexts)) {
             m_imports.insert(ctx->url());
         }
     }
@@ -187,7 +188,7 @@ private:
 
 WatchedDocumentSet::WatchedDocumentSet(QObject* parent)
     : QObject(parent)
-    , d(new WatchedDocumentSetPrivate(this))
+    , d_ptr(new WatchedDocumentSetPrivate(this))
 {
 }
 
@@ -197,11 +198,15 @@ WatchedDocumentSet::~WatchedDocumentSet()
 
 bool WatchedDocumentSet::showImports() const
 {
+    Q_D(const WatchedDocumentSet);
+
     return d->showImports();
 }
 
 void WatchedDocumentSet::setShowImports(bool showImports)
 {
+    Q_D(WatchedDocumentSet);
+
     d->setShowImports(showImports);
 }
 
@@ -211,22 +216,30 @@ void WatchedDocumentSet::setCurrentDocument(const IndexedString&)
 
 WatchedDocumentSet::DocumentSet WatchedDocumentSet::get() const
 {
+    Q_D(const WatchedDocumentSet);
+
     return d->documents();
 }
 
 WatchedDocumentSet::DocumentSet WatchedDocumentSet::imports() const
 {
+    Q_D(const WatchedDocumentSet);
+
     return d->imports();
 }
 
 CurrentDocumentSet::CurrentDocumentSet(const IndexedString& document, QObject* parent)
     : WatchedDocumentSet(parent)
 {
+    Q_D(WatchedDocumentSet);
+
     d->setDocuments({document}, DoUpdate);
 }
 
 void CurrentDocumentSet::setCurrentDocument(const IndexedString& url)
 {
+    Q_D(WatchedDocumentSet);
+
     d->setDocuments({url}, DoUpdate | DoEmit);
 }
 
@@ -238,7 +251,10 @@ ProblemScope CurrentDocumentSet::scope() const
 OpenDocumentSet::OpenDocumentSet(QObject* parent)
     : WatchedDocumentSet(parent)
 {
-    foreach (IDocument* doc, ICore::self()->documentController()->openDocuments()) {
+    Q_D(WatchedDocumentSet);
+
+    const auto documents = ICore::self()->documentController()->openDocuments();
+    for (IDocument* doc : documents) {
         d->addDocument(IndexedString(doc->url()));
     }
     d->updateImports();
@@ -249,11 +265,15 @@ OpenDocumentSet::OpenDocumentSet(QObject* parent)
 
 void OpenDocumentSet::documentClosed(IDocument* doc)
 {
+    Q_D(WatchedDocumentSet);
+
     d->delDocument(IndexedString(doc->url()), DoUpdate | DoEmit);
 }
 
 void OpenDocumentSet::documentCreated(IDocument* doc)
 {
+    Q_D(WatchedDocumentSet);
+
     d->addDocument(IndexedString(doc->url()), DoUpdate | DoEmit);
 }
 
@@ -269,16 +289,22 @@ ProjectSet::ProjectSet(QObject* parent)
 
 void ProjectSet::fileAdded(ProjectFileItem* file)
 {
+    Q_D(WatchedDocumentSet);
+
     d->addDocument(IndexedString(file->indexedPath()), DoUpdate | DoEmit);
 }
 
 void ProjectSet::fileRemoved(ProjectFileItem* file)
 {
+    Q_D(WatchedDocumentSet);
+
     d->delDocument(IndexedString(file->indexedPath()), DoUpdate | DoEmit);
 }
 
 void ProjectSet::fileRenamed(const Path& oldFile, ProjectFileItem* newFile)
 {
+    Q_D(WatchedDocumentSet);
+
     d->delDocument(IndexedString(oldFile.pathOrUrl()));
     d->addDocument(IndexedString(newFile->indexedPath()), DoUpdate | DoEmit);
 }
@@ -314,6 +340,8 @@ void CurrentProjectSet::setCurrentDocument(const IndexedString& url)
 
 void CurrentProjectSet::setCurrentDocumentInternal(const IndexedString& url)
 {
+    Q_D(WatchedDocumentSet);
+
     IProject* projectForUrl = ICore::self()->projectController()->findProjectForUrl(url.toUrl());
     if (projectForUrl && projectForUrl != m_currentProject) {
         m_currentProject = projectForUrl;
@@ -331,8 +359,12 @@ ProblemScope CurrentProjectSet::scope() const
 AllProjectSet::AllProjectSet(QObject* parent)
     : ProjectSet(parent)
 {
-    foreach(const IProject* project, ICore::self()->projectController()->projects()) {
-        foreach (const IndexedString &indexedString, project->fileSet()) {
+    Q_D(WatchedDocumentSet);
+
+    const auto projects = ICore::self()->projectController()->projects();
+    for (const IProject* project : projects) {
+        const auto fileSet = project->fileSet();
+        for (const IndexedString& indexedString : fileSet) {
             d->addDocument(indexedString);
         }
         d->addDocument(IndexedString(project->path().toLocalFile()));

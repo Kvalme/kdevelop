@@ -62,8 +62,10 @@ public:
 
 CommandExecutor::CommandExecutor(const QString& command, QObject* parent)
     : QObject(parent)
-    , d(new CommandExecutorPrivate(this))
+    , d_ptr(new CommandExecutorPrivate(this))
 {
+    Q_D(CommandExecutor);
+
     d->m_process = new KProcess(this);
     d->m_process->setOutputChannelMode(KProcess::SeparateChannels);
     d->m_lineMaker = new ProcessLineMaker(d->m_process);
@@ -73,28 +75,36 @@ CommandExecutor::CommandExecutor(const QString& command, QObject* parent)
     connect(d->m_lineMaker, &ProcessLineMaker::receivedStderrLines,
             this, &CommandExecutor::receivedStandardError);
     connect(d->m_process, &QProcess::errorOccurred,
-            this, [&](QProcess::ProcessError error) {
+            this, [this](QProcess::ProcessError error) {
+            Q_D(CommandExecutor);
             d->procError(error);
         });
     connect(d->m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [&](int code, QProcess::ExitStatus status) {
+            this, [this](int code, QProcess::ExitStatus status) {
+            Q_D(CommandExecutor);
             d->procFinished(code, status);
         });
 }
 
 CommandExecutor::~CommandExecutor()
 {
+    Q_D(CommandExecutor);
+
     delete d->m_process;
     delete d->m_lineMaker;
 }
 
 void CommandExecutor::setEnvironment(const QMap<QString, QString>& env)
 {
+    Q_D(CommandExecutor);
+
     d->m_env = env;
 }
 
 void CommandExecutor::setEnvironment(const QStringList& env)
 {
+    Q_D(CommandExecutor);
+
     QMap<QString, QString> envmap;
     for (const QString& var : env) {
         int sep = var.indexOf(QLatin1Char('='));
@@ -106,26 +116,36 @@ void CommandExecutor::setEnvironment(const QStringList& env)
 
 void CommandExecutor::setArguments(const QStringList& args)
 {
+    Q_D(CommandExecutor);
+
     d->m_args = args;
 }
 
 void CommandExecutor::setWorkingDirectory(const QString& dir)
 {
+    Q_D(CommandExecutor);
+
     d->m_workDir = dir;
 }
 
 bool CommandExecutor::useShell() const
 {
+    Q_D(const CommandExecutor);
+
     return d->m_useShell;
 }
 
 void CommandExecutor::setUseShell(bool shell)
 {
+    Q_D(CommandExecutor);
+
     d->m_useShell = shell;
 }
 
 void CommandExecutor::start()
 {
+    Q_D(CommandExecutor);
+
     for (auto it = d->m_env.constBegin(), itEnd = d->m_env.constEnd(); it != itEnd; ++it) {
         d->m_process->setEnv(it.key(), it.value());
     }
@@ -136,8 +156,9 @@ void CommandExecutor::start()
     } else {
         QStringList arguments;
         arguments.reserve(d->m_args.size());
-        Q_FOREACH (const QString& a, d->m_args)
+        for (const QString& a : qAsConst(d->m_args)) {
             arguments << KShell::quoteArg(a);
+        }
 
         d->m_process->setShellCommand(d->m_command + QLatin1Char(' ') + arguments.join(QLatin1Char(' ')));
     }
@@ -147,26 +168,36 @@ void CommandExecutor::start()
 
 void CommandExecutor::setCommand(const QString& command)
 {
+    Q_D(CommandExecutor);
+
     d->m_command = command;
 }
 
 void CommandExecutor::kill()
 {
+    Q_D(CommandExecutor);
+
     d->m_process->kill();
 }
 
 QString CommandExecutor::command() const
 {
+    Q_D(const CommandExecutor);
+
     return d->m_command;
 }
 
 QStringList CommandExecutor::arguments() const
 {
+    Q_D(const CommandExecutor);
+
     return d->m_args;
 }
 
 QString CommandExecutor::workingDirectory() const
 {
+    Q_D(const CommandExecutor);
+
     return d->m_workDir;
 }
 

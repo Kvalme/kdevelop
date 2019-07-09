@@ -47,9 +47,11 @@ using namespace KDevelop;
 ProjectChangesModel::ProjectChangesModel(QObject* parent)
     : VcsFileChangesModel(parent)
 {
-    foreach(IProject* p, ICore::self()->projectController()->projects())
+    const auto projects = ICore::self()->projectController()->projects();
+    for (IProject* p : projects) {
         addProject(p);
-    
+    }
+
     connect(ICore::self()->projectController(), &IProjectController::projectOpened,
                                               this, &ProjectChangesModel::addProject);
     connect(ICore::self()->projectController(), &IProjectController::projectClosing,
@@ -255,7 +257,7 @@ void ProjectChangesModel::jobUnregistered(KJob* job)
         KDevelop::VcsJob::Revert,
     };
 
-    auto* vcsjob=dynamic_cast<VcsJob*>(job);
+    auto* vcsjob = qobject_cast<VcsJob*>(job);
     if(vcsjob && readOnly.contains(vcsjob->type())) {
         reloadAll();
     }

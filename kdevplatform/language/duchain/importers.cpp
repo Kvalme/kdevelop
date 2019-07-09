@@ -44,6 +44,8 @@ public:
         freeAppendedLists();
     }
 
+    ImportersItem& operator=(const ImportersItem& rhs) = delete;
+
     unsigned int hash() const
     {
         //We only compare the declaration. This allows us implementing a map, although the item-repository
@@ -120,10 +122,12 @@ public:
     {
     }
     //Maps declaration-ids to Importers
-    ItemRepository<ImportersItem, ImportersRequestItem> m_importers;
+    // mutable as things like findIndex are not const
+    mutable ItemRepository<ImportersItem, ImportersRequestItem> m_importers;
 };
 
-Importers::Importers() : d(new ImportersPrivate())
+Importers::Importers()
+    : d_ptr(new ImportersPrivate())
 {
 }
 
@@ -131,6 +135,8 @@ Importers::~Importers() = default;
 
 void Importers::addImporter(const DeclarationId& id, const IndexedDUContext& use)
 {
+    Q_D(Importers);
+
     ImportersItem item;
     item.declaration = id;
     item.importersList().append(use);
@@ -156,6 +162,8 @@ void Importers::addImporter(const DeclarationId& id, const IndexedDUContext& use
 
 void Importers::removeImporter(const DeclarationId& id, const IndexedDUContext& use)
 {
+    Q_D(Importers);
+
     ImportersItem item;
     item.declaration = id;
     ImportersRequestItem request(item);
@@ -180,6 +188,8 @@ void Importers::removeImporter(const DeclarationId& id, const IndexedDUContext& 
 
 KDevVarLengthArray<IndexedDUContext> Importers::importers(const DeclarationId& id) const
 {
+    Q_D(const Importers);
+
     KDevVarLengthArray<IndexedDUContext> ret;
 
     ImportersItem item;

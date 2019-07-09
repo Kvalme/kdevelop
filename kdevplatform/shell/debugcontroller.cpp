@@ -30,6 +30,7 @@
 #include <KLocalizedString>
 #include <KTextEditor/Document>
 #include <KTextEditor/MarkInterface>
+#include <ktexteditor_version.h>
 #include <KXMLGUIFactory>
 
 #include "../interfaces/idocument.h"
@@ -136,8 +137,10 @@ void DebugController::initializeUi()
             this, QStringLiteral("org.kdevelop.debugger.VariablesView"),
             Qt::LeftDockWidgetArea));
 
-    foreach(KParts::Part* p, KDevelop::ICore::self()->partController()->parts())
+    const auto parts = KDevelop::ICore::self()->partController()->parts();
+    for (KParts::Part* p : parts) {
         partAdded(p);
+    }
     connect(KDevelop::ICore::self()->partController(),
             &IPartController::partAdded,
             this,
@@ -171,8 +174,8 @@ VariableCollection* DebugController::variableCollection()
 
 void DebugController::partAdded(KParts::Part* part)
 {
-    if (auto* doc = dynamic_cast<KTextEditor::Document*>(part)) {
-        auto *iface = dynamic_cast<KTextEditor::MarkInterface*>(doc);
+    if (auto* doc = qobject_cast<KTextEditor::Document*>(part)) {
+        auto* iface = qobject_cast<KTextEditor::MarkInterface*>(doc);
         if( !iface )
             return;
 
@@ -318,17 +321,17 @@ void DebugController::addSession(IDebugSession* session)
 void DebugController::clearExecutionPoint()
 {
     qCDebug(SHELL);
-    foreach (KDevelop::IDocument* document, KDevelop::ICore::self()->documentController()->openDocuments()) {
-        auto *iface = dynamic_cast<KTextEditor::MarkInterface*>(document->textDocument());
+    const auto documents = KDevelop::ICore::self()->documentController()->openDocuments();
+    for (KDevelop::IDocument* document : documents) {
+        auto* iface = qobject_cast<KTextEditor::MarkInterface*>(document->textDocument());
         if (!iface)
             continue;
 
-        QHashIterator<int, KTextEditor::Mark*> it = iface->marks();
-        while (it.hasNext())
-        {
-            KTextEditor::Mark* mark = it.next().value();
-            if( mark->type & KTextEditor::MarkInterface::Execution )
+        const auto oldMarks = iface->marks();
+        for (KTextEditor::Mark* mark : oldMarks) {
+            if (mark->type & KTextEditor::MarkInterface::Execution) {
                 iface->removeMark( mark->line, KTextEditor::MarkInterface::Execution );
+            }
         }
     }
 }
@@ -340,7 +343,7 @@ void DebugController::showStepInSource(const QUrl &url, int lineNum)
     clearExecutionPoint();
     qCDebug(SHELL) << url << lineNum;
 
-    Q_ASSERT(dynamic_cast<IDebugSession*>(sender()));
+    Q_ASSERT(qobject_cast<IDebugSession*>(sender()));
     QPair<QUrl,int> openUrl = static_cast<IDebugSession*>(sender())->convertToLocalUrl(qMakePair<QUrl,int>( url, lineNum ));
     KDevelop::IDocument* document = KDevelop::ICore::self()
         ->documentController()
@@ -349,7 +352,7 @@ void DebugController::showStepInSource(const QUrl &url, int lineNum)
     if( !document )
         return;
 
-    auto *iface = dynamic_cast<KTextEditor::MarkInterface*>(document->textDocument());
+    auto* iface = qobject_cast<KTextEditor::MarkInterface*>(document->textDocument());
     if( !iface )
         return;
 
@@ -362,7 +365,7 @@ void DebugController::showStepInSource(const QUrl &url, int lineNum)
 
 void DebugController::debuggerStateChanged(KDevelop::IDebugSession::DebuggerState state)
 {
-    Q_ASSERT(dynamic_cast<IDebugSession*>(sender()));
+    Q_ASSERT(qobject_cast<IDebugSession*>(sender()));
     auto* session = static_cast<IDebugSession*>(sender());
     qCDebug(SHELL) << session << state << "current" << m_currentSession.data();
     if (session == m_currentSession.data()) {
@@ -567,8 +570,13 @@ void DebugController::showCurrentLine()
 
 const QPixmap* DebugController::executionPointPixmap()
 {
-  static QPixmap pixmap=QIcon::fromTheme(QStringLiteral("go-next")).pixmap(QSize(22,22), QIcon::Normal, QIcon::Off);
-  return &pixmap;
+#if KTEXTEDITOR_VERSION >= QT_VERSION_CHECK(5,50,0)
+    constexpr int markPixmapSize = 32;
+#else
+    constexpr int markPixmapSize = 22;
+#endif
+    static QPixmap pixmap=QIcon::fromTheme(QStringLiteral("go-next")).pixmap(QSize(markPixmapSize, markPixmapSize), QIcon::Normal, QIcon::Off);
+    return &pixmap;
 }
 
 }

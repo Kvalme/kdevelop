@@ -237,13 +237,13 @@ void AbstractFileManagerPluginPrivate::addJobItems(FileManagerListJob* job,
     }
 
     // add new rows
-    foreach ( const Path& path, files ) {
+    for (const Path& path : qAsConst(files)) {
         ProjectFileItem* file = q->createFileItem( baseItem->project(), path, baseItem );
         if (file) {
             emit q->fileAdded( file );
         }
     }
-    foreach ( const Path& path, folders ) {
+    for (const Path& path : qAsConst(folders)) {
         ProjectFolderItem* folder = q->createFolderItem( baseItem->project(), path, baseItem );
         if (folder) {
             emit q->folderAdded( folder );
@@ -279,7 +279,8 @@ void AbstractFileManagerPluginPrivate::created(const QString& path_)
         }
         if ( info.isDir() ) {
             bool found = false;
-            foreach ( ProjectFolderItem* folder, p->foldersForPath(indexedPath) ) {
+            const auto folderItems = p->foldersForPath(indexedPath);
+            for (ProjectFolderItem* folder : folderItems) {
                 // exists already in this project, happens e.g. when we restart the dirwatcher
                 // or if we delete and remove folders consecutively https://bugs.kde.org/show_bug.cgi?id=260741
                 qCDebug(FILEMANAGER) << "force reload of" << path << folder;
@@ -294,7 +295,8 @@ void AbstractFileManagerPluginPrivate::created(const QString& path_)
             // also gets triggered for kate's backup files
             continue;
         }
-        foreach ( ProjectFolderItem* parentItem, p->foldersForPath(indexedParent) ) {
+        const auto parentItems = p->foldersForPath(indexedParent);
+        for (ProjectFolderItem* parentItem : parentItems) {
             if ( info.isDir() ) {
                 ProjectFolderItem* folder = q->createFolderItem( p, path, parentItem );
                 if (folder) {
@@ -319,7 +321,7 @@ void AbstractFileManagerPluginPrivate::deleted(const QString& path_)
         return;
     }
     // ensure that the path is not inside a stopped folder
-    foreach(const QString& folder, m_stoppedFolders) {
+    for (const QString& folder : qAsConst(m_stoppedFolders)) {
         if (path_.startsWith(folder)) {
             return;
         }
@@ -346,10 +348,12 @@ void AbstractFileManagerPluginPrivate::deleted(const QString& path_)
             // FIXME: how should this be handled? see unit test
             continue;
         }
-        foreach ( ProjectFolderItem* item, p->foldersForPath(indexed) ) {
+        const auto folderItems = p->foldersForPath(indexed);
+        for (ProjectFolderItem* item : folderItems) {
             delete item;
         }
-        foreach ( ProjectFileItem* item, p->filesForPath(indexed) ) {
+        const auto fileItems = p->filesForPath(indexed);
+        for (ProjectFileItem* item : fileItems) {
             emit q->fileRemoved(item);
             ifDebug(qCDebug(FILEMANAGER) << "removing file" << item;)
             delete item;
@@ -369,7 +373,8 @@ bool AbstractFileManagerPluginPrivate::rename(ProjectBaseItem* item, const Path&
             return false;
         }
     }
-    foreach ( ProjectFolderItem* parent, item->project()->foldersForPath(IndexedString(newPath.parent().pathOrUrl())) ) {
+    const auto parentItems = item->project()->foldersForPath(IndexedString(newPath.parent().pathOrUrl()));
+    for (ProjectFolderItem* parent : parentItems) {
         if ( parent->folder() ) {
             stopWatcher(parent);
             const Path source = item->path();
@@ -430,12 +435,13 @@ AbstractFileManagerPlugin::AbstractFileManagerPlugin( const QString& componentNa
                                                       const QVariantList & /*args*/ )
     : IProjectFileManager(),
       IPlugin( componentName, parent ),
-      d(new AbstractFileManagerPluginPrivate(this))
+      d_ptr(new AbstractFileManagerPluginPrivate(this))
 {
     connect(core()->projectController(), &IProjectController::projectClosing,
-            this, [&] (IProject* project) { d->projectClosing(project); });
+            this, [this] (IProject* project) { Q_D(AbstractFileManagerPlugin); d->projectClosing(project); });
     connect(core()->projectController()->projectModel(), &ProjectModel::rowsAboutToBeRemoved,
-            this, [&] (const QModelIndex& parent, int first, int last) {
+            this, [this] (const QModelIndex& parent, int first, int last) {
+                Q_D(AbstractFileManagerPlugin);
                 // cleanup list jobs to remove about-to-be-dangling pointers
                 auto* model = core()->projectController()->projectModel();
                 for (int i = first; i <= last; ++i) {
@@ -466,6 +472,8 @@ QList<ProjectFolderItem*> AbstractFileManagerPlugin::parse( ProjectFolderItem *i
 
 ProjectFolderItem *AbstractFileManagerPlugin::import( IProject *project )
 {
+    Q_D(AbstractFileManagerPlugin);
+
     ProjectFolderItem *projectRoot = createFolderItem( project, project->path(), nullptr );
     emit folderAdded( projectRoot );
     qCDebug(FILEMANAGER) << "imported new project" << project->name() << "at" << projectRoot->path();
@@ -482,14 +490,16 @@ ProjectFolderItem *AbstractFileManagerPlugin::import( IProject *project )
         //       the rebase.
         //       see also: https://bugs.kde.org/show_bug.cgi?id=404184
         connect(watcher, &KDirWatch::created,
-                this, [&] (const QString& path) {
+                this, [this] (const QString& path) {
                     QTimer::singleShot(1000, this, [this, path]() {
+                        Q_D(AbstractFileManagerPlugin);
                         d->created(path);
                     });
                 });
         connect(watcher, &KDirWatch::deleted,
-                this, [&] (const QString& path) {
+                this, [this] (const QString& path) {
                     QTimer::singleShot(1000, this, [this, path]() {
+                        Q_D(AbstractFileManagerPlugin);
                         d->deleted(path);
                     });
                 });
@@ -504,11 +514,15 @@ ProjectFolderItem *AbstractFileManagerPlugin::import( IProject *project )
 
 KJob* AbstractFileManagerPlugin::createImportJob(ProjectFolderItem* item)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     return d->eventuallyReadFolder(item);
 }
 
 bool AbstractFileManagerPlugin::reload( ProjectFolderItem* item )
 {
+    Q_D(AbstractFileManagerPlugin);
+
     qCDebug(FILEMANAGER) << "reloading item" << item->path();
     auto job = d->eventuallyReadFolder( item->folder() );
     job->start();
@@ -518,6 +532,8 @@ bool AbstractFileManagerPlugin::reload( ProjectFolderItem* item )
 ProjectFolderItem* AbstractFileManagerPlugin::addFolder( const Path& folder,
         ProjectFolderItem * parent )
 {
+    Q_D(AbstractFileManagerPlugin);
+
     qCDebug(FILEMANAGER) << "adding folder" << folder << "to" << parent->path();
     ProjectFolderItem* created = nullptr;
     d->stopWatcher(parent);
@@ -535,6 +551,8 @@ ProjectFolderItem* AbstractFileManagerPlugin::addFolder( const Path& folder,
 ProjectFileItem* AbstractFileManagerPlugin::addFile( const Path& file,
         ProjectFolderItem * parent )
 {
+    Q_D(AbstractFileManagerPlugin);
+
     qCDebug(FILEMANAGER) << "adding file" << file << "to" << parent->path();
     ProjectFileItem* created = nullptr;
     d->stopWatcher(parent);
@@ -550,18 +568,24 @@ ProjectFileItem* AbstractFileManagerPlugin::addFile( const Path& file,
 
 bool AbstractFileManagerPlugin::renameFolder(ProjectFolderItem* folder, const Path& newPath)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     qCDebug(FILEMANAGER) << "trying to rename a folder:" << folder->path() << newPath;
     return d->rename(folder, newPath);
 }
 
 bool AbstractFileManagerPlugin::renameFile(ProjectFileItem* file, const Path& newPath)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     qCDebug(FILEMANAGER) << "trying to rename a file:" << file->path() << newPath;
     return d->rename(file, newPath);
 }
 
 bool AbstractFileManagerPlugin::removeFilesAndFolders(const QList<ProjectBaseItem*> &items)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     bool success = true;
     for (ProjectBaseItem* item : items) {
         Q_ASSERT(item->folder() || item->file());
@@ -589,6 +613,8 @@ bool AbstractFileManagerPlugin::removeFilesAndFolders(const QList<ProjectBaseIte
 
 bool AbstractFileManagerPlugin::moveFilesAndFolders(const QList< ProjectBaseItem* >& items, ProjectFolderItem* newParent)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     bool success = true;
     for (ProjectBaseItem* item : items) {
         Q_ASSERT(item->folder() || item->file());
@@ -625,6 +651,8 @@ bool AbstractFileManagerPlugin::moveFilesAndFolders(const QList< ProjectBaseItem
 
 bool AbstractFileManagerPlugin::copyFilesAndFolders(const Path::List& items, ProjectFolderItem* newParent)
 {
+    Q_D(AbstractFileManagerPlugin);
+
     bool success = true;
     for (const Path& item : items) {
         d->stopWatcher(newParent);
@@ -648,6 +676,8 @@ bool AbstractFileManagerPlugin::copyFilesAndFolders(const Path::List& items, Pro
 bool AbstractFileManagerPlugin::isValid( const Path& path, const bool isFolder,
                                          IProject* project ) const
 {
+    Q_D(const AbstractFileManagerPlugin);
+
     return d->m_filters.isValid( path, isFolder, project );
 }
 
@@ -665,6 +695,8 @@ ProjectFolderItem* AbstractFileManagerPlugin::createFolderItem( IProject* projec
 
 KDirWatch* AbstractFileManagerPlugin::projectWatcher( IProject* project ) const
 {
+    Q_D(const AbstractFileManagerPlugin);
+
     return d->m_watchers.value( project, nullptr );
 }
 

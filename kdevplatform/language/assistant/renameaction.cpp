@@ -60,8 +60,10 @@ public:
 
 RenameAction::RenameAction(const Identifier& oldDeclarationName, const QString& newDeclarationName,
                            const QVector<RevisionedFileRanges>& oldDeclarationUses)
-    : d(new RenameActionPrivate)
+    : d_ptr(new RenameActionPrivate)
 {
+    Q_D(RenameAction);
+
     d->m_oldDeclarationName = oldDeclarationName;
     d->m_newDeclarationName = newDeclarationName.trimmed();
     d->m_oldDeclarationUses = oldDeclarationUses;
@@ -73,25 +75,33 @@ RenameAction::~RenameAction()
 
 QString RenameAction::description() const
 {
+    Q_D(const RenameAction);
+
     return i18n("Rename \"%1\" to \"%2\"", d->m_oldDeclarationName.toString(), d->m_newDeclarationName);
 }
 
 QString RenameAction::newDeclarationName() const
 {
+    Q_D(const RenameAction);
+
     return d->m_newDeclarationName;
 }
 
 QString RenameAction::oldDeclarationName() const
 {
+    Q_D(const RenameAction);
+
     return d->m_oldDeclarationName.toString();
 }
 
 void RenameAction::execute()
 {
+    Q_D(RenameAction);
+
     DocumentChangeSet changes;
 
-    foreach (const RevisionedFileRanges& ranges, d->m_oldDeclarationUses) {
-        foreach (const RangeInRevision range, ranges.ranges) {
+    for (const RevisionedFileRanges& ranges : qAsConst(d->m_oldDeclarationUses)) {
+        for (const RangeInRevision range : ranges.ranges) {
             KTextEditor::Range currentRange;
             if (ranges.revision && ranges.revision->valid()) {
                 currentRange = ranges.revision->transformToCurrentRevision(range);

@@ -29,6 +29,8 @@
 class QTextBrowser;
 
 namespace KDevelop {
+class AbstractNavigationWidgetPrivate;
+
 /**
  * This class deleted itself when its part is deleted, so always use a QPointer when referencing it.
  * The duchain must be read-locked for most operations
@@ -38,6 +40,7 @@ class KDEVPLATFORMLANGUAGE_EXPORT AbstractNavigationWidget
     , public QuickOpenEmbeddedWidgetInterface
 {
     Q_OBJECT
+    Q_INTERFACES(KDevelop::QuickOpenEmbeddedWidgetInterface)
 
 public:
     enum DisplayHint {
@@ -73,7 +76,7 @@ public Q_SLOTS:
     void embeddedWidgetUp();
     void embeddedWidgetDown();
 
-    NavigationContextPointer context();
+    NavigationContextPointer context() const;
 
     void navigateDeclaration(const KDevelop::IndexedDeclaration& decl);
 
@@ -92,7 +95,8 @@ protected:
     void update();
 
 private:
-    const QScopedPointer<class AbstractNavigationWidgetPrivate> d;
+    const QScopedPointer<class AbstractNavigationWidgetPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(AbstractNavigationWidget)
 };
 }
 

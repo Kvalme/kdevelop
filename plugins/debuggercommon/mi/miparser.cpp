@@ -133,7 +133,7 @@ std::unique_ptr<Record> MIParser::parseStreamRecord()
     m_lex->nextToken();
     MATCH_PTR(Token_string_literal);
     stream->message = parseStringLiteral();
-    return std::move(stream);
+    return stream;
 }
 
 std::unique_ptr<Record> MIParser::parseResultOrAsyncRecord()
@@ -168,14 +168,14 @@ std::unique_ptr<Record> MIParser::parseResultOrAsyncRecord()
             return {};
     }
 
-    return std::move(result);
+    return result;
 }
 
 bool MIParser::parseResult(Result *&result)
 {
     // be less strict about the format, see e.g.:
     // https://bugs.kde.org/show_bug.cgi?id=304730
-    // http://sourceware.org/bugzilla/show_bug.cgi?id=9659
+    // https://sourceware.org/bugzilla/show_bug.cgi?id=9659
 
     std::unique_ptr<Result> res(new Result);
 

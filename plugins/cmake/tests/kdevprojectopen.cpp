@@ -45,7 +45,8 @@ KDevProjectOpen::KDevProjectOpen(QObject* parent)
 
 void KDevProjectOpen::cleanup()
 {
-    foreach(IProject* p, ICore::self()->projectController()->projects()) {
+    const auto projects = ICore::self()->projectController()->projects();
+    for (IProject* p : projects) {
         ICore::self()->projectController()->closeProject(p);
     }
     Q_ASSERT(ICore::self()->projectController()->projects().isEmpty());
@@ -74,7 +75,7 @@ int main(int argc, char** argv)
     QApplication app(argc, argv);
 
     KAboutData aboutData( QStringLiteral("kdevprojectopen"), i18n( "KDevelop" ), QStringLiteral("0.99"), i18n("opens a project then closes it, debugging tool"), KAboutLicense::GPL,
-                          i18n( "Copyright 1999-2012, The KDevelop developers" ), QString(), QStringLiteral("http://www.kdevelop.org/") );
+                          i18n( "Copyright 1999-2012, The KDevelop developers" ), QString(), QStringLiteral("https://www.kdevelop.org/") );
     aboutData.addAuthor( i18n("Aleix Pol Gonzalez"), i18n( "" ), QStringLiteral("aleixpol@kde.org") );
     KAboutData::setApplicationData(aboutData);
 
@@ -90,7 +91,8 @@ int main(int argc, char** argv)
     }
 
     KDevProjectOpen opener;
-    foreach(const QString& arg, parser.positionalArguments()) {
+    const auto args = parser.positionalArguments();
+    for (const QString& arg : args) {
         opener.openProject(QUrl::fromUserInput(arg));
     }
     return app.exec();

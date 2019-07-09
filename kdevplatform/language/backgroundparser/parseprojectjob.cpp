@@ -71,15 +71,18 @@ ParseProjectJob::~ParseProjectJob()
 }
 
 ParseProjectJob::ParseProjectJob(IProject* project, bool forceUpdate, bool forceAll)
-    : d(new ParseProjectJobPrivate(project, forceUpdate, forceAll))
+    : d_ptr(new ParseProjectJobPrivate(project, forceUpdate, forceAll))
 {
+    Q_D(ParseProjectJob);
+
     connect(project, &IProject::destroyed, this, &ParseProjectJob::deleteNow);
 
     if (forceAll || ICore::self()->projectController()->parseAllProjectSources()) {
         d->filesToParse = project->fileSet();
     } else {
         // In case we don't want to parse the whole project, still add all currently open files that belong to the project to the background-parser
-        foreach (auto document, ICore::self()->documentController()->openDocuments()) {
+        const auto documents = ICore::self()->documentController()->openDocuments();
+        for (auto* document : documents) {
             const auto path = IndexedString(document->url());
             if (project->fileSet().contains(path)) {
                 d->filesToParse.insert(path);
@@ -103,6 +106,8 @@ void ParseProjectJob::updateProgress()
 
 void ParseProjectJob::updateReady(const IndexedString& url, const ReferencedTopDUContext& topContext)
 {
+    Q_D(ParseProjectJob);
+
     Q_UNUSED(url);
     Q_UNUSED(topContext);
     ++d->updated;
@@ -115,6 +120,8 @@ void ParseProjectJob::updateReady(const IndexedString& url, const ReferencedTopD
 
 void ParseProjectJob::start()
 {
+    Q_D(ParseProjectJob);
+
     if (ICore::self()->shuttingDown()) {
         return;
     }
@@ -151,7 +158,8 @@ void ParseProjectJob::start()
     }
 
     // Add all currently open files that belong to the project to the background-parser, so that they'll be parsed first of all
-    foreach (auto document, ICore::self()->documentController()->openDocuments()) {
+    const auto documents = ICore::self()->documentController()->openDocuments();
+    for (auto* document : documents) {
         const auto path = IndexedString(document->url());
         auto fileIt = d->filesToParse.find(path);
         if (fileIt != d->filesToParse.end()) {
@@ -172,7 +180,7 @@ void ParseProjectJob::start()
     int processed = 0;
     // guard against reentrancy issues, see also bug 345480
     auto crashGuard = QPointer<ParseProjectJob> {this};
-    foreach (const IndexedString& url, d->filesToParse) {
+    for (const IndexedString& url : qAsConst(d->filesToParse)) {
         ICore::self()->languageController()->backgroundParser()->addDocument(url, processingLevel,
                                                                              BackgroundParser::InitialParsePriority,
                                                                              this);

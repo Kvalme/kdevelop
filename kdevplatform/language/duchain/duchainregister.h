@@ -168,6 +168,8 @@ public:
     static DUChainItemSystem& self();
 
 private:
+    Q_DISABLE_COPY(DUChainItemSystem)
+    DUChainItemSystem() = default;
     ~DUChainItemSystem();
 
     QVector<DUChainBaseFactory*> m_factories;
@@ -213,6 +215,8 @@ struct DUChainItemRegistrator
     {
         DUChainItemSystem::self().unregisterTypeClass<T, Data>();
     }
+private:
+    Q_DISABLE_COPY(DUChainItemRegistrator)
 };
 
 ///You must add this into your source-files for every DUChainBase based class

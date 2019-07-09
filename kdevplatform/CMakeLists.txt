@@ -25,7 +25,7 @@ set(Boost_ADDITIONAL_VERSIONS 1.39.0 1.39)
 find_package(Boost 1.35.0)
 set_package_properties(Boost PROPERTIES
     PURPOSE "Boost libraries for enabling the classbrowser"
-    URL "http://www.boost.org"
+    URL "https://www.boost.org/"
     TYPE REQUIRED)
 
 configure_file( ${CMAKE_CURRENT_SOURCE_DIR}/config-kdevplatform.h.cmake
@@ -47,14 +47,6 @@ ecm_setup_version(PROJECT
                   PACKAGE_VERSION_FILE "${CMAKE_CURRENT_BINARY_DIR}/KDevPlatformConfigVersion.cmake"
                   SOVERSION ${KDEVPLATFORM_SOVERSION}
 )
-
-string(TOLOWER "${CMAKE_BUILD_TYPE}" CMAKE_BUILD_TYPE_TOLOWER)
-if(CMAKE_BUILD_TYPE_TOLOWER MATCHES "debug"
-  OR CMAKE_BUILD_TYPE_TOLOWER STREQUAL "")
-  set(COMPILER_OPTIMIZATIONS_DISABLED TRUE)
-else()
-  set(COMPILER_OPTIMIZATIONS_DISABLED FALSE)
-endif()
 
 add_subdirectory(sublime)
 add_subdirectory(interfaces)

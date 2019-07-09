@@ -65,7 +65,7 @@ public:
 
 PartController::PartController(Core *core, QWidget *toplevel)
     : IPartController(toplevel)
-    , d(new PartControllerPrivate(core))
+    , d_ptr(new PartControllerPrivate(core))
 
 {
     setObjectName(QStringLiteral("PartController"));
@@ -90,19 +90,25 @@ PartController::~PartController() = default;
 
 bool PartController::showTextEditorStatusBar() const
 {
+    Q_D(const PartController);
+
     return d->m_showTextEditorStatusBar;
 }
 
 void PartController::setShowTextEditorStatusBar(bool show)
 {
+    Q_D(PartController);
+
     if (d->m_showTextEditorStatusBar == show)
         return;
 
     d->m_showTextEditorStatusBar = show;
 
     // update
-    foreach (Sublime::Area* area, Core::self()->uiControllerInternal()->allAreas()) {
-        foreach (Sublime::View* view, area->views()) {
+    const auto areas = Core::self()->uiControllerInternal()->allAreas();
+    for (Sublime::Area* area : areas) {
+        const auto views = area->views();
+        for (Sublime::View* view : views) {
             if (!view->hasWidget())
                 continue;
 
@@ -123,6 +129,8 @@ void PartController::setShowTextEditorStatusBar(bool show)
 //MOVE BACK TO DOCUMENTCONTROLLER OR MULTIBUFFER EVENTUALLY
 bool PartController::isTextType(const QMimeType& mimeType)
 {
+    Q_D(PartController);
+
     bool isTextType = false;
     if (d->m_textTypes.contains(mimeType.name()))
     {
@@ -228,6 +236,8 @@ KParts::ReadWritePart* PartController::readWrite( KParts::Part * part ) const
 
 void PartController::loadSettings( bool projectIsLoaded )
 {
+    Q_D(PartController);
+
     Q_UNUSED( projectIsLoaded );
 
     KConfigGroup cg(KSharedConfig::openConfig(), "UiSettings");
@@ -236,6 +246,8 @@ void PartController::loadSettings( bool projectIsLoaded )
 
 void PartController::saveSettings( bool projectIsLoaded )
 {
+    Q_D(PartController);
+
     Q_UNUSED( projectIsLoaded );
 
     KConfigGroup cg(KSharedConfig::openConfig(), "UiSettings");
@@ -253,6 +265,8 @@ void PartController::cleanup()
 
 void PartController::setupActions()
 {
+    Q_D(PartController);
+
     KActionCollection* actionCollection =
         d->m_core->uiControllerInternal()->defaultMainWindow()->actionCollection();
 
@@ -272,7 +286,7 @@ void PartController::setActiveView(KTextEditor::View *view)
 
 KTextEditor::View *PartController::activeView()
 {
-    auto* textView = dynamic_cast<TextView*>(Core::self()->uiController()->activeArea()->activeView());
+    auto* textView = qobject_cast<TextView*>(Core::self()->uiController()->activeArea()->activeView());
     if (textView) {
         return textView->textView();
     }

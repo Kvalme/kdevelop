@@ -31,18 +31,22 @@ public:
 };
 
 LaunchConfigurationType::LaunchConfigurationType()
-    : d( new LaunchConfigurationTypePrivate )
+    : d_ptr(new LaunchConfigurationTypePrivate)
 {
 }
 
 LaunchConfigurationType::~LaunchConfigurationType()
 {
+    Q_D(LaunchConfigurationType);
+
     qDeleteAll(d->starters);
 }
 
 
 void LaunchConfigurationType::addLauncher( ILauncher* starter )
 {
+    Q_D(LaunchConfigurationType);
+
     if( !d->starters.contains( starter ) )
     {
         d->starters.append( starter );
@@ -50,17 +54,23 @@ void LaunchConfigurationType::addLauncher( ILauncher* starter )
 }
 void LaunchConfigurationType::removeLauncher( ILauncher* starter )
 {
+    Q_D(LaunchConfigurationType);
+
     d->starters.removeAll( starter );
 }
 
 QList<ILauncher*> LaunchConfigurationType::launchers() const
 {
+    Q_D(const LaunchConfigurationType);
+
     return d->starters;
 }
 
-ILauncher* LaunchConfigurationType::launcherForId( const QString& id )
+ILauncher* LaunchConfigurationType::launcherForId(const QString& id) const
 {
-    foreach( ILauncher* l, d->starters ) {
+    Q_D(const LaunchConfigurationType);
+
+    for (ILauncher* l : qAsConst(d->starters)) {
         if( l->id() == id ) {
            return l;
         }

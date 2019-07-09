@@ -75,6 +75,8 @@ public:
         freeAppendedLists();
     }
 
+    PersistentSymbolTableItem& operator=(const PersistentSymbolTableItem& rhs) = delete;
+
     inline unsigned int hash() const
     {
         //We only compare the declaration. This allows us implementing a map, although the item-repository
@@ -161,16 +163,19 @@ public:
     {
     }
     //Maps declaration-ids to declarations
-    ItemRepository<PersistentSymbolTableItem, PersistentSymbolTableRequestItem, true, false> m_declarations;
+    // mutable as things like findIndex are not const
+    mutable ItemRepository<PersistentSymbolTableItem, PersistentSymbolTableRequestItem, true, false> m_declarations;
 
-    QHash<IndexedQualifiedIdentifier, CacheEntry<IndexedDeclaration>> m_declarationsCache;
+    mutable QHash<IndexedQualifiedIdentifier, CacheEntry<IndexedDeclaration>> m_declarationsCache;
 
     //We cache the imports so the currently used nodes are very close in memory, which leads to much better CPU cache utilization
-    QHash<TopDUContext::IndexedRecursiveImports, PersistentSymbolTable::CachedIndexedRecursiveImports> m_importsCache;
+    mutable QHash<TopDUContext::IndexedRecursiveImports, PersistentSymbolTable::CachedIndexedRecursiveImports> m_importsCache;
 };
 
 void PersistentSymbolTable::clearCache()
 {
+    Q_D(PersistentSymbolTable);
+
     ENSURE_CHAIN_WRITE_LOCKED
     {
         QMutexLocker lock(d->m_declarations.mutex());
@@ -179,7 +184,8 @@ void PersistentSymbolTable::clearCache()
     }
 }
 
-PersistentSymbolTable::PersistentSymbolTable() : d(new PersistentSymbolTablePrivate())
+PersistentSymbolTable::PersistentSymbolTable()
+    : d_ptr(new PersistentSymbolTablePrivate())
 {
 }
 
@@ -193,6 +199,8 @@ PersistentSymbolTable::~PersistentSymbolTable()
 
 void PersistentSymbolTable::addDeclaration(const IndexedQualifiedIdentifier& id, const IndexedDeclaration& declaration)
 {
+    Q_D(PersistentSymbolTable);
+
     QMutexLocker lock(d->m_declarations.mutex());
     ENSURE_CHAIN_WRITE_LOCKED
 
@@ -243,6 +251,8 @@ void PersistentSymbolTable::addDeclaration(const IndexedQualifiedIdentifier& id,
 void PersistentSymbolTable::removeDeclaration(const IndexedQualifiedIdentifier& id,
                                               const IndexedDeclaration& declaration)
 {
+    Q_D(PersistentSymbolTable);
+
     QMutexLocker lock(d->m_declarations.mutex());
     ENSURE_CHAIN_WRITE_LOCKED
 
@@ -308,6 +318,8 @@ struct DeclarationCacheVisitor
 PersistentSymbolTable::FilteredDeclarationIterator PersistentSymbolTable::filteredDeclarations(
     const IndexedQualifiedIdentifier& id, const TopDUContext::IndexedRecursiveImports& visibility) const
 {
+    Q_D(const PersistentSymbolTable);
+
     QMutexLocker lock(d->m_declarations.mutex());
     ENSURE_CHAIN_READ_LOCKED
 
@@ -357,6 +369,8 @@ PersistentSymbolTable::FilteredDeclarationIterator PersistentSymbolTable::filter
 
 PersistentSymbolTable::Declarations PersistentSymbolTable::declarations(const IndexedQualifiedIdentifier& id) const
 {
+    Q_D(const PersistentSymbolTable);
+
     QMutexLocker lock(d->m_declarations.mutex());
     ENSURE_CHAIN_READ_LOCKED
 
@@ -377,6 +391,8 @@ PersistentSymbolTable::Declarations PersistentSymbolTable::declarations(const In
 void PersistentSymbolTable::declarations(const IndexedQualifiedIdentifier& id, uint& countTarget,
                                          const IndexedDeclaration*& declarationsTarget) const
 {
+    Q_D(const PersistentSymbolTable);
+
     QMutexLocker lock(d->m_declarations.mutex());
     ENSURE_CHAIN_READ_LOCKED
 
@@ -453,6 +469,8 @@ struct DebugVisitor
 
 void PersistentSymbolTable::dump(const QTextStream& out)
 {
+    Q_D(PersistentSymbolTable);
+
     {
         QMutexLocker lock(d->m_declarations.mutex());
 

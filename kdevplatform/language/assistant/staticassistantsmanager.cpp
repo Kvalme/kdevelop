@@ -58,14 +58,18 @@ public:
 
 StaticAssistantsManager::StaticAssistantsManager(QObject* parent)
     : QObject(parent)
-    , d(new StaticAssistantsManagerPrivate(this))
+    , d_ptr(new StaticAssistantsManagerPrivate(this))
 {
+    Q_D(StaticAssistantsManager);
+
     connect(KDevelop::ICore::self()->documentController(),
             &IDocumentController::documentLoaded,
-            this, [&](IDocument* document) {
+            this, [this](IDocument* document) {
+        Q_D(StaticAssistantsManager);
         d->documentLoaded(document);
     });
-    foreach (IDocument* document, ICore::self()->documentController()->openDocuments()) {
+    const auto documents = ICore::self()->documentController()->openDocuments();
+    for (IDocument* document : documents) {
         d->documentLoaded(document);
     }
 
@@ -79,6 +83,8 @@ StaticAssistantsManager::~StaticAssistantsManager()
 
 void StaticAssistantsManager::registerAssistant(const StaticAssistant::Ptr& assistant)
 {
+    Q_D(StaticAssistantsManager);
+
     if (d->m_registeredAssistants.contains(assistant))
         return;
 
@@ -87,11 +93,15 @@ void StaticAssistantsManager::registerAssistant(const StaticAssistant::Ptr& assi
 
 void StaticAssistantsManager::unregisterAssistant(const StaticAssistant::Ptr& assistant)
 {
+    Q_D(StaticAssistantsManager);
+
     d->m_registeredAssistants.removeOne(assistant);
 }
 
 QVector<StaticAssistant::Ptr> StaticAssistantsManager::registeredAssistants() const
 {
+    Q_D(const StaticAssistantsManager);
+
     return d->m_registeredAssistants;
 }
 
@@ -113,7 +123,7 @@ void StaticAssistantsManagerPrivate::documentLoaded(IDocument* document)
 void StaticAssistantsManagerPrivate::textInserted(Document* doc, const Cursor& cursor, const QString& text)
 {
     auto changed = false;
-    Q_FOREACH (auto assistant, m_registeredAssistants) {
+    for (auto& assistant : qAsConst(m_registeredAssistants)) {
         auto range = Range(cursor, cursor + Cursor(0, text.size()));
         auto wasUseful = assistant->isUseful();
         assistant->textChanged(doc, range, {});
@@ -131,7 +141,7 @@ void StaticAssistantsManagerPrivate::textRemoved(Document* doc, const Range& ran
                                                  const QString& removedText)
 {
     auto changed = false;
-    Q_FOREACH (auto assistant, m_registeredAssistants) {
+    for (auto& assistant : qAsConst(m_registeredAssistants)) {
         auto wasUseful = assistant->isUseful();
         assistant->textChanged(doc, range, removedText);
         if (wasUseful != assistant->isUseful()) {
@@ -147,14 +157,18 @@ void StaticAssistantsManagerPrivate::textRemoved(Document* doc, const Range& ran
 void StaticAssistantsManager::notifyAssistants(const IndexedString& url,
                                                const KDevelop::ReferencedTopDUContext& context)
 {
-    Q_FOREACH (auto assistant, d->m_registeredAssistants) {
+    Q_D(StaticAssistantsManager);
+
+    for (auto& assistant : qAsConst(d->m_registeredAssistants)) {
         assistant->updateReady(url, context);
     }
 }
 
 QVector<KDevelop::Problem::Ptr> KDevelop::StaticAssistantsManager::problemsForContext(
-    const KDevelop::ReferencedTopDUContext& top)
+    const KDevelop::ReferencedTopDUContext& top) const
 {
+    Q_D(const StaticAssistantsManager);
+
     View* view = ICore::self()->documentController()->activeTextDocumentView();
     if (!view || !top || IndexedString(view->document()->url()) != top->url()) {
         return {};
@@ -168,7 +182,7 @@ QVector<KDevelop::Problem::Ptr> KDevelop::StaticAssistantsManager::problemsForCo
 
     auto ret = QVector<KDevelop::Problem::Ptr>();
     qCDebug(LANGUAGE) << "Trying to find assistants for language" << language->name();
-    foreach (const auto& assistant, d->m_registeredAssistants) {
+    for (const auto& assistant : qAsConst(d->m_registeredAssistants)) {
         if (assistant->supportedLanguage() != language)
             continue;
 

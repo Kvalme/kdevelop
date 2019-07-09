@@ -47,6 +47,8 @@ public:
         freeAppendedLists();
     }
 
+    DefinitionsItem& operator=(const DefinitionsItem& rhs) = delete;
+
     unsigned int hash() const
     {
         //We only compare the declaration. This allows us implementing a map, although the item-repository
@@ -154,10 +156,12 @@ public:
     {
     }
     //Maps declaration-ids to definitions
-    ItemRepository<DefinitionsItem, DefinitionsRequestItem> m_definitions;
+    // mutable as things like findIndex are not const
+    mutable ItemRepository<DefinitionsItem, DefinitionsRequestItem> m_definitions;
 };
 
-Definitions::Definitions() : d(new DefinitionsPrivate())
+Definitions::Definitions()
+    : d_ptr(new DefinitionsPrivate())
 {
 }
 
@@ -165,6 +169,8 @@ Definitions::~Definitions() = default;
 
 void Definitions::addDefinition(const DeclarationId& id, const IndexedDeclaration& definition)
 {
+    Q_D(Definitions);
+
     DefinitionsItem item;
     item.declaration = id;
     item.definitionsList().append(definition);
@@ -190,6 +196,8 @@ void Definitions::addDefinition(const DeclarationId& id, const IndexedDeclaratio
 
 void Definitions::removeDefinition(const DeclarationId& id, const IndexedDeclaration& definition)
 {
+    Q_D(Definitions);
+
     DefinitionsItem item;
     item.declaration = id;
     DefinitionsRequestItem request(item);
@@ -214,6 +222,8 @@ void Definitions::removeDefinition(const DeclarationId& id, const IndexedDeclara
 
 KDevVarLengthArray<IndexedDeclaration> Definitions::definitions(const DeclarationId& id) const
 {
+    Q_D(const Definitions);
+
     KDevVarLengthArray<IndexedDeclaration> ret;
 
     DefinitionsItem item;
@@ -233,6 +243,8 @@ KDevVarLengthArray<IndexedDeclaration> Definitions::definitions(const Declaratio
 
 void Definitions::dump(const QTextStream& out)
 {
+    Q_D(Definitions);
+
     QMutexLocker lock(d->m_definitions.mutex());
     DefinitionsVisitor v(this, out);
     d->m_definitions.visitAllItems(v);

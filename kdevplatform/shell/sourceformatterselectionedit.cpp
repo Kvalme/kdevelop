@@ -80,8 +80,10 @@ public:
 
 SourceFormatterSelectionEdit::SourceFormatterSelectionEdit(QWidget* parent)
     : QWidget(parent)
-    , d(new SourceFormatterSelectionEditPrivate)
+    , d_ptr(new SourceFormatterSelectionEditPrivate)
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     d->ui.setupUi(this);
 
     connect(d->ui.cbLanguages, QOverload<int>::of(&KComboBox::currentIndexChanged),
@@ -126,6 +128,8 @@ SourceFormatterSelectionEdit::SourceFormatterSelectionEdit(QWidget* parent)
 
 SourceFormatterSelectionEdit::~SourceFormatterSelectionEdit()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     qDeleteAll(d->formatters);
 }
 
@@ -137,6 +141,8 @@ static void selectAvailableStyle(LanguageSettings& lang)
 
 void SourceFormatterSelectionEdit::addSourceFormatter(ISourceFormatter* ifmt)
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     qCDebug(SHELL) << "Adding source formatter:" << ifmt->name();
 
     SourceFormatter* formatter;
@@ -149,8 +155,9 @@ void SourceFormatterSelectionEdit::addSourceFormatter(ISourceFormatter* ifmt)
         return;
     }
 
-    foreach ( const SourceFormatterStyle* style, formatter->styles ) {
-        foreach ( const SourceFormatterStyle::MimeHighlightPair& item, style->mimeTypes() ) {
+    for (const SourceFormatterStyle* style : qAsConst(formatter->styles)) {
+        const auto mimeTypes = style->mimeTypes();
+        for ( const SourceFormatterStyle::MimeHighlightPair& item : mimeTypes) {
             QMimeType mime = QMimeDatabase().mimeTypeForName(item.mimeType);
             if (!mime.isValid()) {
                 qCWarning(SHELL) << "formatter plugin" << ifmt->name() << "supports unknown mimetype entry" << item.mimeType;
@@ -173,6 +180,8 @@ void SourceFormatterSelectionEdit::addSourceFormatter(ISourceFormatter* ifmt)
 
 void SourceFormatterSelectionEdit::removeSourceFormatter(ISourceFormatter* ifmt)
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     qCDebug(SHELL) << "Removing source formatter:" << ifmt->name();
 
     auto iter = d->formatters.find(ifmt->name());
@@ -206,6 +215,8 @@ void SourceFormatterSelectionEdit::removeSourceFormatter(ISourceFormatter* ifmt)
 
 void SourceFormatterSelectionEdit::loadSettings(const KConfigGroup& config)
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     for (auto languageIter = d->languages.begin(); languageIter != d->languages.end(); ++languageIter) {
         // Pick the first appropriate mimetype for this language
         LanguageSettings& l = languageIter.value();
@@ -243,23 +254,28 @@ void SourceFormatterSelectionEdit::loadSettings(const KConfigGroup& config)
 
 void SourceFormatterSelectionEdit::resetUi()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     qCDebug(SHELL) << "Resetting UI";
 
-    // Sort the languages, preferring firstly active, then loaded languages
+    // Create a sorted list of the languages, preferring firstly active, then loaded languages, then others
     QList<QString> sortedLanguages;
 
-    foreach(const auto language,
-                KDevelop::ICore::self()->languageController()->activeLanguages() +
-                KDevelop::ICore::self()->languageController()->loadedLanguages())
-    {
-        if (d->languages.contains(language->name()) && !sortedLanguages.contains(language->name())) {
-            sortedLanguages.push_back( language->name() );
+    for (const auto& languages : {ICore::self()->languageController()->activeLanguages(),
+                                ICore::self()->languageController()->loadedLanguages()}) {
+        for (const auto* language : languages) {
+            const auto languageName = language->name();
+            if (d->languages.contains(languageName) && !sortedLanguages.contains(languageName)) {
+                sortedLanguages.append(languageName);
+            }
         }
     }
 
-    foreach (const QString& name, d->languages.keys()) {
-        if( !sortedLanguages.contains( name ) )
-            sortedLanguages.push_back( name );
+    for (auto it = d->languages.constBegin(); it != d->languages.constEnd(); ++it) {
+        const auto& languageName = it.key();
+        if (!sortedLanguages.contains(languageName)) {
+            sortedLanguages.append(languageName);
+        }
     }
 
     bool b = blockSignals( true );
@@ -269,9 +285,8 @@ void SourceFormatterSelectionEdit::resetUi()
     d->ui.cbLanguages->clear();
     d->ui.cbFormatters->clear();
     d->ui.styleList->clear();
-    foreach( const QString& name, sortedLanguages )
-    {
-        d->ui.cbLanguages->addItem(name);
+    for (const auto& language : sortedLanguages) {
+        d->ui.cbLanguages->addItem(language);
     }
     if (d->ui.cbLanguages->count() == 0) {
         d->ui.cbLanguages->setEnabled(false);
@@ -289,23 +304,24 @@ void SourceFormatterSelectionEdit::resetUi()
     d->ui.styleList->blockSignals(b);
 }
 
-void SourceFormatterSelectionEdit::saveSettings(KConfigGroup& config)
+void SourceFormatterSelectionEdit::saveSettings(KConfigGroup& config) const
 {
+    Q_D(const SourceFormatterSelectionEdit);
+
     // store formatters globally
     KConfigGroup globalConfig = Core::self()->sourceFormatterControllerInternal()->globalConfig();
 
-    foreach (SourceFormatter* fmt, d->formatters) {
+    for (const SourceFormatter* fmt : qAsConst(d->formatters)) {
         KConfigGroup fmtgrp = globalConfig.group( fmt->formatter->name() );
 
         // delete all styles so we don't leave any behind when all user styles are deleted
-        foreach( const QString& subgrp, fmtgrp.groupList() )
-        {
+        const auto oldStyleGroups = fmtgrp.groupList();
+        for (const QString& subgrp : oldStyleGroups) {
             if( subgrp.startsWith( Strings::userStylePrefix() ) ) {
                 fmtgrp.deleteGroup( subgrp );
             }
         }
-        foreach( const SourceFormatterStyle* style, fmt->styles )
-        {
+        for (const SourceFormatterStyle* style : fmt->styles) {
             if( style->name().startsWith( Strings::userStylePrefix() ) )
             {
                 KConfigGroup stylegrp = fmtgrp.group( style->name() );
@@ -330,6 +346,8 @@ void SourceFormatterSelectionEdit::saveSettings(KConfigGroup& config)
 
 void SourceFormatterSelectionEdit::enableStyleButtons()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     bool userEntry = d->ui.styleList->currentItem()
                      && d->ui.styleList->currentItem()->data(STYLE_ROLE).toString().startsWith(Strings::userStylePrefix());
 
@@ -349,6 +367,8 @@ void SourceFormatterSelectionEdit::enableStyleButtons()
 
 void SourceFormatterSelectionEdit::selectLanguage( int idx )
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     d->ui.cbFormatters->clear();
     if( idx < 0 )
     {
@@ -360,8 +380,7 @@ void SourceFormatterSelectionEdit::selectLanguage( int idx )
     {
         QSignalBlocker blocker(d->ui.cbFormatters);
         LanguageSettings& l = d->languages[d->ui.cbLanguages->itemText(idx)];
-        foreach( const SourceFormatter* fmt, l.formatters )
-        {
+        for (const SourceFormatter* fmt : qAsConst(l.formatters)) {
             d->ui.cbFormatters->addItem(fmt->formatter->caption(), fmt->formatter->name());
         }
         d->ui.cbFormatters->setCurrentIndex(d->ui.cbFormatters->findData(l.selectedFormatter->formatter->name()));
@@ -372,6 +391,8 @@ void SourceFormatterSelectionEdit::selectLanguage( int idx )
 
 void SourceFormatterSelectionEdit::selectFormatter( int idx )
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     d->ui.styleList->clear();
     if( idx < 0 )
     {
@@ -389,7 +410,7 @@ void SourceFormatterSelectionEdit::selectFormatter( int idx )
         l.selectedFormatter = formatterIter.value();
         l.selectedStyle = nullptr;    // will hold 0 until a style is picked
     }
-    foreach( const SourceFormatterStyle* style, formatterIter.value()->styles ) {
+    for (const SourceFormatterStyle* style : qAsConst(formatterIter.value()->styles)) {
         if (!style->supportsLanguage(d->ui.cbLanguages->currentText())) {
             // do not list items which do not support the selected language
             continue;
@@ -408,6 +429,8 @@ void SourceFormatterSelectionEdit::selectFormatter( int idx )
 
 void SourceFormatterSelectionEdit::selectStyle( int row )
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     if( row < 0 )
     {
         enableStyleButtons();
@@ -423,6 +446,8 @@ void SourceFormatterSelectionEdit::selectStyle( int row )
 
 void SourceFormatterSelectionEdit::deleteStyle()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     Q_ASSERT( d->ui.styleList->currentRow() >= 0 );
 
     QListWidgetItem* item = d->ui.styleList->currentItem();
@@ -448,7 +473,7 @@ void SourceFormatterSelectionEdit::deleteStyle()
     fmt->styles.erase(styleIter);
     delete item;
     selectStyle(d->ui.styleList->count() > 0 ? 0 : -1);
-    foreach (LanguageSettings* lang, otherlanguages) {
+    for (LanguageSettings* lang : qAsConst(otherlanguages)) {
         selectAvailableStyle(*lang);
     }
     updatePreview();
@@ -457,6 +482,8 @@ void SourceFormatterSelectionEdit::deleteStyle()
 
 void SourceFormatterSelectionEdit::editStyle()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     QString language = d->ui.cbLanguages->currentText();
     Q_ASSERT( d->languages.contains(language) );
     LanguageSettings& l = d->languages[language];
@@ -476,6 +503,8 @@ void SourceFormatterSelectionEdit::editStyle()
 
 void SourceFormatterSelectionEdit::newStyle()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     QListWidgetItem* item = d->ui.styleList->currentItem();
     LanguageSettings& l = d->languages[d->ui.cbLanguages->currentText()];
     SourceFormatter* fmt = l.selectedFormatter;
@@ -506,6 +535,8 @@ void SourceFormatterSelectionEdit::newStyle()
 
 void SourceFormatterSelectionEdit::styleNameChanged( QListWidgetItem* item )
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     if ( !item->isSelected() ) {
         return;
     }
@@ -517,6 +548,8 @@ void SourceFormatterSelectionEdit::styleNameChanged( QListWidgetItem* item )
 
 QListWidgetItem* SourceFormatterSelectionEdit::addStyle( const SourceFormatterStyle& s )
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     auto* item = new QListWidgetItem(d->ui.styleList);
     item->setText( s.caption() );
     item->setData( STYLE_ROLE, s.name() );
@@ -530,6 +563,8 @@ QListWidgetItem* SourceFormatterSelectionEdit::addStyle( const SourceFormatterSt
 
 void SourceFormatterSelectionEdit::updatePreview()
 {
+    Q_D(SourceFormatterSelectionEdit);
+
     d->document->setReadWrite(true);
 
     QString langName = d->ui.cbLanguages->itemText(d->ui.cbLanguages->currentIndex());

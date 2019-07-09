@@ -41,7 +41,8 @@
 namespace Sublime {
 
 MainWindow::MainWindow(Controller *controller, Qt::WindowFlags flags)
-: KParts::MainWindow(nullptr, flags), d(new MainWindowPrivate(this, controller))
+    : KParts::MainWindow(nullptr, flags)
+    , d_ptr(new MainWindowPrivate(this, controller))
 {
     connect(this, &MainWindow::destroyed, controller, QOverload<>::of(&Controller::areaReleased));
 
@@ -53,10 +54,11 @@ MainWindow::MainWindow(Controller *controller, Qt::WindowFlags flags)
 
 bool MainWindow::containsView(View* view) const
 {
-    foreach(Area* area, areas())
-        if(area->views().contains(view))
-            return true;
-    return false;
+    const auto areas = this->areas();
+
+    return std::any_of(areas.begin(), areas.end(), [view](Area* area) {
+        return area->views().contains(view);
+    });
 }
 
 QList< Area* > MainWindow::areas() const
@@ -75,14 +77,18 @@ MainWindow::~MainWindow()
 
 void MainWindow::reconstructViews(const QList<View*>& topViews)
 {
+    Q_D(MainWindow);
+
     d->reconstructViews(topViews);
 }
 
 QList<View*> MainWindow::topViews() const
 {
+    Q_D(const MainWindow);
+
     QList<View*> topViews;
-    foreach(View* view, d->area->views())
-    {
+    const auto views = d->area->views();
+    for (View* view : views) {
         if(view->hasWidget())
         {
             QWidget* widget = view->widget();
@@ -99,13 +105,17 @@ QList<View*> MainWindow::topViews() const
 
 QList<Container*> MainWindow::containers() const
 {
+    Q_D(const MainWindow);
+
     return d->viewContainers.values();
 }
 
 void MainWindow::setArea(Area *area)
 {
+    Q_D(MainWindow);
+
     if (d->area)
-        disconnect(d->area, nullptr, d.data(), nullptr);
+        disconnect(d->area, nullptr, d, nullptr);
 
     bool differentArea = (area != d->area);
     /* All views will be removed from dock area now.  However, this does
@@ -134,13 +144,13 @@ void MainWindow::setArea(Area *area)
     hu.stop();
 
     loadSettings();
-    connect(area, &Area::viewAdded, d.data(), &MainWindowPrivate::viewAdded);
-    connect(area, &Area::viewRemoved, d.data(), &MainWindowPrivate::viewRemovedInternal);
-    connect(area, &Area::requestToolViewRaise, d.data(), &MainWindowPrivate::raiseToolView);
-    connect(area, &Area::aboutToRemoveView, d.data(), &MainWindowPrivate::aboutToRemoveView);
-    connect(area, &Area::toolViewAdded, d.data(), &MainWindowPrivate::toolViewAdded);
-    connect(area, &Area::aboutToRemoveToolView, d.data(), &MainWindowPrivate::aboutToRemoveToolView);
-    connect(area, &Area::toolViewMoved, d.data(), &MainWindowPrivate::toolViewMoved);
+    connect(area, &Area::viewAdded, d, &MainWindowPrivate::viewAdded);
+    connect(area, &Area::viewRemoved, d, &MainWindowPrivate::viewRemovedInternal);
+    connect(area, &Area::requestToolViewRaise, d, &MainWindowPrivate::raiseToolView);
+    connect(area, &Area::aboutToRemoveView, d, &MainWindowPrivate::aboutToRemoveView);
+    connect(area, &Area::toolViewAdded, d, &MainWindowPrivate::toolViewAdded);
+    connect(area, &Area::aboutToRemoveToolView, d, &MainWindowPrivate::aboutToRemoveToolView);
+    connect(area, &Area::toolViewMoved, d, &MainWindowPrivate::toolViewMoved);
 }
 
 void MainWindow::initializeStatusBar()
@@ -151,37 +161,51 @@ void MainWindow::initializeStatusBar()
 
 void MainWindow::clearArea()
 {
+    Q_D(MainWindow);
+
     emit areaCleared(d->area);
     d->clearArea();
 }
 
 QList<View*> MainWindow::toolDocks() const
 {
+    Q_D(const MainWindow);
+
     return d->docks;
 }
 
 Area *Sublime::MainWindow::area() const
 {
+    Q_D(const MainWindow);
+
     return d->area;
 }
 
 Controller *MainWindow::controller() const
 {
+    Q_D(const MainWindow);
+
     return d->controller;
 }
 
 View *MainWindow::activeView() const
 {
+    Q_D(const MainWindow);
+
     return d->activeView;
 }
 
 View *MainWindow::activeToolView() const
 {
+    Q_D(const MainWindow);
+
     return d->activeToolView;
 }
 
 void MainWindow::activateView(Sublime::View* view, bool focus)
 {
+    Q_D(MainWindow);
+
     const auto containerIt = d->viewContainers.constFind(view);
     if (containerIt == d->viewContainers.constEnd())
         return;
@@ -201,6 +225,8 @@ void MainWindow::activateView(Sublime::View* view, bool focus)
 
 void MainWindow::setActiveView(View *view, bool focus)
 {
+    Q_D(MainWindow);
+
     View* oldActiveView = d->activeView;
 
     d->activeView = view;
@@ -214,12 +240,16 @@ void MainWindow::setActiveView(View *view, bool focus)
 
 void Sublime::MainWindow::setActiveToolView(View *view)
 {
+    Q_D(MainWindow);
+
     d->activeToolView = view;
     emit activeToolViewChanged(view);
 }
 
 void MainWindow::saveSettings()
 {
+    Q_D(MainWindow);
+
     d->disableConcentrationMode();
     QString group = QStringLiteral("MainWindow");
     if (area())
@@ -230,7 +260,8 @@ void MainWindow::saveSettings()
     saveMainWindowSettings(cg);
 
     //debugToolBar visibility is stored separately to allow a area dependent default value
-    foreach (KToolBar* toolbar, toolBars()) {
+    const auto toolBars = this->toolBars();
+    for (KToolBar* toolbar : toolBars) {
         if (toolbar->objectName() == QLatin1String("debugToolBar")) {
             cg.writeEntry("debugToolBarVisibility", toolbar->isVisibleTo(this));
         }
@@ -245,6 +276,8 @@ void MainWindow::saveSettings()
 
 void MainWindow::loadSettings()
 {
+    Q_D(MainWindow);
+
     HoldUpdates hu(this);
 
     qCDebug(SUBLIME) << "loading settings for " << (area() ? area()->objectName() : QString());
@@ -298,7 +331,8 @@ void MainWindow::loadSettings()
     }
 
     int n = 1; // Toolbar counter. toolbars are counted from 1,
-    foreach (KToolBar* toolbar, toolBars()) {
+    const auto toolBars = this->toolBars();
+    for (KToolBar* toolbar : toolBars) {
         QString group(QStringLiteral("Toolbar"));
         // Give a number to the toolbar, but prefer a name if there is one,
         // because there's no real guarantee on the ordering of toolbars
@@ -316,8 +350,7 @@ void MainWindow::loadSettings()
     }
 
     const bool tabBarHidden = !Container::configTabBarVisible();
-    foreach (Container *container, d->viewContainers)
-    {
+    for (Container *container : qAsConst(d->viewContainers)) {
         container->setTabBarHidden(tabBarHidden);
     }
 
@@ -374,27 +407,38 @@ void MainWindow::loadGeometry(const KConfigGroup &config)
 
 void MainWindow::enableAreaSettingsSave()
 {
+    Q_D(MainWindow);
+
     d->autoAreaSettingsSave = true;
 }
 
 QWidget *MainWindow::statusBarLocation() const
 {
+    Q_D(const MainWindow);
+
     return d->idealController->statusBarLocation();
 }
 
 ViewBarContainer *MainWindow::viewBarContainer() const
 {
+    Q_D(const MainWindow);
+
     return d->viewBarContainer;
 }
 
 void MainWindow::setTabBarLeftCornerWidget(QWidget* widget)
 {
+    Q_D(MainWindow);
+
     d->setTabBarLeftCornerWidget(widget);
 }
 
 void MainWindow::tabDoubleClicked(View* view)
 {
     Q_UNUSED(view);
+
+    Q_D(MainWindow);
+
     d->toggleDocksShown();
 }
 
@@ -419,8 +463,9 @@ void MainWindow::dockBarContextMenuRequested(Qt::DockWidgetArea , const QPoint& 
 
 View* MainWindow::viewForPosition(const QPoint& globalPos) const
 {
-    foreach(Container* container, d->viewContainers)
-    {
+    Q_D(const MainWindow);
+
+    for (Container* container : qAsConst(d->viewContainers)) {
         QRect globalGeom = QRect(container->mapToGlobal(QPoint(0,0)), container->mapToGlobal(QPoint(container->width(), container->height())));
        if(globalGeom.contains(globalPos))
        {
@@ -433,6 +478,8 @@ View* MainWindow::viewForPosition(const QPoint& globalPos) const
 
 void MainWindow::setBackgroundCentralWidget(QWidget* w)
 {
+    Q_D(MainWindow);
+
     d->setBackgroundCentralWidget(w);
 }
 

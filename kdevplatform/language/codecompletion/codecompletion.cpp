@@ -44,7 +44,7 @@ CodeCompletion::CodeCompletion(QObject* parent, KTextEditor::CodeCompletionModel
     , m_model(aModel)
     , m_language(language)
 {
-    auto* kdevModel = dynamic_cast<KDevelop::CodeCompletionModel*>(aModel);
+    auto* kdevModel = qobject_cast<KDevelop::CodeCompletionModel*>(aModel);
     if (kdevModel)
         kdevModel->initialize();
     connect(KDevelop::ICore::self()->documentController(), &IDocumentController::textDocumentCreated,
@@ -63,7 +63,8 @@ CodeCompletion::~CodeCompletion()
 
 void CodeCompletion::checkDocuments()
 {
-    foreach (KDevelop::IDocument* doc, KDevelop::ICore::self()->documentController()->openDocuments()) {
+    const auto documents = KDevelop::ICore::self()->documentController()->openDocuments();
+    for (KDevelop::IDocument* doc : documents) {
         if (doc->textDocument()) {
             checkDocument(doc->textDocument());
         }
@@ -74,7 +75,7 @@ void CodeCompletion::viewCreated(KTextEditor::Document* document, KTextEditor::V
 {
     Q_UNUSED(document);
 
-    if (auto* cc = dynamic_cast<CodeCompletionInterface*>(view)) {
+    if (auto* cc = qobject_cast<CodeCompletionInterface*>(view)) {
         cc->registerCompletionModel(m_model);
         qCDebug(LANGUAGE) << "Registered completion model";
         emit registeredToView(view);
@@ -99,8 +100,9 @@ void CodeCompletion::textDocumentCreated(KDevelop::IDocument* document)
 
 void CodeCompletion::unregisterDocument(Document* textDocument)
 {
-    foreach (KTextEditor::View* view, textDocument->views()) {
-        if (auto* cc = dynamic_cast<CodeCompletionInterface*>(view)) {
+    const auto views = textDocument->views();
+    for (KTextEditor::View* view : views) {
+        if (auto* cc = qobject_cast<CodeCompletionInterface*>(view)) {
             cc->unregisterCompletionModel(m_model);
             emit unregisteredFromView(view);
         }
@@ -126,8 +128,10 @@ void CodeCompletion::checkDocument(Document* textDocument)
     if (!found && !m_language.isEmpty())
         return;
 
-    foreach (KTextEditor::View* view, textDocument->views())
+    const auto views = textDocument->views();
+    for (KTextEditor::View* view : views) {
         viewCreated(textDocument, view);
+    }
 
     connect(textDocument, &Document::viewCreated, this, &CodeCompletion::viewCreated);
 }

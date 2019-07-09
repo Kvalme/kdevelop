@@ -48,7 +48,7 @@ namespace {
 
 KTextEditor::MainWindow *toKteWrapper(KParts::MainWindow *window)
 {
-    if (auto mainWindow = dynamic_cast<KDevelop::MainWindow*>(window)) {
+    if (auto mainWindow = qobject_cast<KDevelop::MainWindow*>(window)) {
         return mainWindow->kateWrapper() ? mainWindow->kateWrapper()->interface() : nullptr;
     } else {
         return nullptr;
@@ -57,7 +57,7 @@ KTextEditor::MainWindow *toKteWrapper(KParts::MainWindow *window)
 
 KTextEditor::View *toKteView(Sublime::View *view)
 {
-    if (auto textView = dynamic_cast<KDevelop::TextView*>(view)) {
+    if (auto textView = qobject_cast<KDevelop::TextView*>(view)) {
         return textView->textView();
     } else {
         return nullptr;
@@ -276,15 +276,17 @@ QWidget *MainWindow::window() const
 
 QList<KTextEditor::View *> MainWindow::views() const
 {
-    QList<KTextEditor::View *> views;
-    foreach (auto area, m_mainWindow->areas()) {
-        foreach (auto view, area->views()) {
+    QList<KTextEditor::View *> kteViews;
+    const auto areas = m_mainWindow->areas();
+    for (auto* area : areas) {
+        const auto views = area->views();
+        for (auto* view : views) {
             if (auto kteView = toKteView(view)) {
-                views << kteView;
+                kteViews << kteView;
             }
         }
     }
-    return views;
+    return kteViews;
 }
 
 KTextEditor::View *MainWindow::activeView() const
@@ -294,8 +296,10 @@ KTextEditor::View *MainWindow::activeView() const
 
 KTextEditor::View *MainWindow::activateView(KTextEditor::Document *doc)
 {
-    foreach (auto area, m_mainWindow->areas()) {
-        foreach (auto view, area->views()) {
+    const auto areas = m_mainWindow->areas();
+    for (auto* area : areas) {
+        const auto views = area->views();
+        for (auto* view : views) {
             if (auto kteView = toKteView(view)) {
                 if (kteView->document() == doc) {
                     m_mainWindow->activateView(view);
@@ -395,7 +399,7 @@ Plugin::~Plugin() = default;
 void Plugin::unload()
 {
     if (auto mainWindow = KTextEditor::Editor::instance()->application()->activeMainWindow()) {
-        auto integration = dynamic_cast<MainWindow*>(mainWindow->parent());
+        auto integration = qobject_cast<MainWindow*>(mainWindow->parent());
         if (integration) {
             integration->removePluginView(pluginId());
         }
@@ -407,7 +411,7 @@ void Plugin::unload()
 KXMLGUIClient *Plugin::createGUIForMainWindow(Sublime::MainWindow* window)
 {
     auto ret = IPlugin::createGUIForMainWindow(window);
-    auto mainWindow = dynamic_cast<KDevelop::MainWindow*>(window);
+    auto mainWindow = qobject_cast<KDevelop::MainWindow*>(window);
     Q_ASSERT(mainWindow);
 
     auto wrapper = mainWindow->kateWrapper();

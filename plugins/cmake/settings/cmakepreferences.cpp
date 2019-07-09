@@ -77,8 +77,6 @@ CMakePreferences::CMakePreferences(IPlugin* plugin, const ProjectConfigOptions& 
 
     connect(m_prefsUi->installationPrefix, &KUrlRequester::textChanged,
             this, &CMakePreferences::changed);
-    connect(m_prefsUi->buildType, QOverload<const QString&>::of(&QComboBox::currentIndexChanged),
-            this, &CMakePreferences::changed);
     connect(m_prefsUi->buildType, &QComboBox::currentTextChanged,
             this, &CMakePreferences::changed);
     connect(m_prefsUi->extraArguments, &KComboBox::currentTextChanged,
@@ -197,7 +195,8 @@ void CMakePreferences::configureCacheView()
 
     if( m_currentModel ) {
         m_prefsUi->cacheList->setEnabled( true );
-        foreach(const QModelIndex & idx, m_currentModel->persistentIndices()) {
+        const auto persistentIndices = m_currentModel->persistentIndices();
+        for (const QModelIndex& idx : persistentIndices) {
             m_prefsUi->cacheList->openPersistentEditor(idx);
         }
     } else {

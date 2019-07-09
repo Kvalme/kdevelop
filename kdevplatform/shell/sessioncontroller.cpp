@@ -101,20 +101,20 @@ public:
 
     Session* findSessionForName( const QString& name ) const
     {
-        foreach( Session* s, sessionActions.keys() )
-        {
+        for (auto it = sessionActions.begin(), end = sessionActions.end(); it != end; ++it) {
+            Session* s = it.key();
             if( s->name() == name )
                 return s;
         }
         return nullptr;
     }
 
-    Session* findSessionForId(const QString& idString)
+    Session* findSessionForId(const QString& idString) const
     {
         QUuid id(idString);
 
-        foreach( Session* s, sessionActions.keys() )
-        {
+        for (auto it = sessionActions.begin(), end = sessionActions.end(); it != end; ++it) {
+            Session* s = it.key();
             if( s->id() == id)
                 return s;
         }
@@ -130,8 +130,10 @@ public:
         delete session;
 #if 0
         //Terminate this instance of kdevelop if the user agrees
-        foreach(Sublime::MainWindow* window, Core::self()->uiController()->controller()->mainWindows())
+        const auto windows = Core::self()->uiController()->controller()->mainWindows();
+        for (Sublime::MainWindow* window : windows) {
             window->close();
+        }
 #endif
     }
 
@@ -251,8 +253,11 @@ private Q_SLOTS:
 
 
 SessionController::SessionController( QObject *parent )
-        : QObject( parent ), d(new SessionControllerPrivate(this))
+    : QObject(parent)
+    , d_ptr(new SessionControllerPrivate(this))
 {
+    Q_D(SessionController);
+
     setObjectName(QStringLiteral("SessionController"));
     setComponentName(QStringLiteral("kdevsession"), i18n("Session Manager"));
 
@@ -264,18 +269,21 @@ SessionController::SessionController( QObject *parent )
     if (Core::self()->setupFlags() & Core::NoUi) return;
 
     QAction* action = actionCollection()->addAction(QStringLiteral("new_session"));
-    connect(action, &QAction::triggered, this, [&] { d->newSession(); });
+    connect(action, &QAction::triggered,
+            this, [this] { Q_D(SessionController); d->newSession(); });
     action->setText( i18nc("@action:inmenu", "Start New Session") );
     action->setToolTip( i18nc("@info:tooltip", "Start a new KDevelop instance with an empty session") );
     action->setIcon(QIcon::fromTheme(QStringLiteral("window-new")));
 
     action = actionCollection()->addAction(QStringLiteral("rename_session"));
-    connect(action, &QAction::triggered, this, [&] { d->renameSession(); });
+    connect(action, &QAction::triggered,
+            this, [this] { Q_D(SessionController); d->renameSession(); });
     action->setText( i18n("Rename Current Session...") );
     action->setIcon(QIcon::fromTheme(QStringLiteral("edit-rename")));
 
     action = actionCollection()->addAction(QStringLiteral("delete_session"));
-    connect(action, &QAction::triggered, this, [&] { d->deleteCurrentSession(); });
+    connect(action, &QAction::triggered,
+            this, [this] { Q_D(SessionController); d->deleteCurrentSession(); });
     action->setText( i18n("Delete Current Session...") );
     action->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete")));
 
@@ -286,18 +294,23 @@ SessionController::SessionController( QObject *parent )
     action->setIcon(QIcon::fromTheme(QStringLiteral("application-exit")));
 
     d->grp = new QActionGroup( this );
-    connect( d->grp, &QActionGroup::triggered, this, [&] (QAction* a) { d->loadSessionFromAction(a); } );
+    connect(d->grp, &QActionGroup::triggered,
+            this, [this] (QAction* a) { Q_D(SessionController); d->loadSessionFromAction(a); } );
 }
 
 SessionController::~SessionController() = default;
 
 void SessionController::startNewSession()
 {
+    Q_D(SessionController);
+
     d->newSession();
 }
 
 void SessionController::cleanup()
 {
+    Q_D(SessionController);
+
     if (d->activeSession) {
         Q_ASSERT(d->activeSession->id().toString() == d->sessionLock->id());
 
@@ -314,10 +327,12 @@ void SessionController::cleanup()
 
 void SessionController::initialize( const QString& session )
 {
+    Q_D(SessionController);
+
     QDir sessiondir( SessionControllerPrivate::sessionBaseDirectory() );
 
-    foreach( const QString& s, sessiondir.entryList( QDir::AllDirs | QDir::NoDotAndDotDot ) )
-    {
+    const auto sessionDirs = sessiondir.entryList(QDir::AllDirs | QDir::NoDotAndDotDot);
+    for (const QString& s : sessionDirs) {
         QUuid id( s );
         if( id.isNull() )
             continue;
@@ -346,21 +361,29 @@ void SessionController::initialize( const QString& session )
 
 ISession* SessionController::activeSession() const
 {
+    Q_D(const SessionController);
+
     return d->activeSession;
 }
 
 ISessionLock::Ptr SessionController::activeSessionLock() const
 {
+    Q_D(const SessionController);
+
     return d->sessionLock;
 }
 
 void SessionController::loadSession( const QString& nameOrId )
 {
+    Q_D(SessionController);
+
     d->loadSessionExternally( session( nameOrId ) );
 }
 
 QList<QString> SessionController::sessionNames() const
 {
+    Q_D(const SessionController);
+
     QList<QString> l;
     const auto sessions = d->sessionActions.keys();
     l.reserve(sessions.size());
@@ -372,6 +395,8 @@ QList<QString> SessionController::sessionNames() const
 
 QList< const KDevelop::Session* > SessionController::sessions() const
 {
+    Q_D(const SessionController);
+
     QList< const KDevelop::Session* > ret;
     const auto sessions = d->sessionActions.keys();
     ret.reserve(sessions.size());
@@ -384,6 +409,8 @@ QList< const KDevelop::Session* > SessionController::sessions() const
 
 Session* SessionController::createSession( const QString& name )
 {
+    Q_D(SessionController);
+
     Session* s;
     if(name.startsWith(QLatin1Char('{'))) {
         s = new Session( QUuid(name).toString(), this );
@@ -399,6 +426,8 @@ Session* SessionController::createSession( const QString& name )
 
 void SessionController::deleteSession( const ISessionLock::Ptr& lock )
 {
+    Q_D(SessionController);
+
     Session* s  = session(lock->id());
 
     QHash<Session*,QAction*>::iterator it = d->sessionActions.find(s);
@@ -431,6 +460,8 @@ void SessionController::deleteSessionFromDisk( const ISessionLock::Ptr& lock )
 
 void SessionController::loadDefaultSession( const QString& session )
 {
+    Q_D(SessionController);
+
     QString load = session;
     if (load.isEmpty()) {
         KConfigGroup grp = KSharedConfig::openConfig()->group( cfgSessionGroup() );
@@ -457,6 +488,8 @@ void SessionController::loadDefaultSession( const QString& session )
 
 Session* SessionController::session( const QString& nameOrId ) const
 {
+    Q_D(const SessionController);
+
     Session* ret = d->findSessionForName( nameOrId );
     if(ret)
         return ret;
@@ -466,6 +499,8 @@ Session* SessionController::session( const QString& nameOrId ) const
 
 QString SessionController::cloneSession( const QString& nameOrid )
 {
+    Q_D(SessionController);
+
     Session* origSession = session( nameOrid );
     qsrand(QDateTime::currentDateTimeUtc().toTime_t());
     QUuid id = QUuid::createUuid();
@@ -483,6 +518,8 @@ QString SessionController::cloneSession( const QString& nameOrid )
 
 void SessionController::updateXmlGuiActionList()
 {
+    Q_D(SessionController);
+
     unplugActionList( QStringLiteral("available_sessions") );
 
     if (d->grp) {
@@ -581,8 +618,8 @@ QString SessionController::showSessionChooserDialog(const QString& headerText, b
 
     QString defaultSession = KSharedConfig::openConfig()->group( cfgSessionGroup() ).readEntry( cfgActiveSessionEntry(), "default" );
 
-    foreach(const KDevelop::SessionInfo& si, KDevelop::SessionController::availableSessionInfos())
-    {
+    const auto availableSessionInfos = KDevelop::SessionController::availableSessionInfos();
+    for (const KDevelop::SessionInfo& si : availableSessionInfos) {
         if ( si.name.isEmpty() && si.projects.isEmpty() ) {
             continue;
         }
@@ -640,6 +677,8 @@ QString SessionController::handleLockedSession( const QString& sessionName, cons
 
 QString SessionController::sessionDir()
 {
+    Q_D(SessionController);
+
     if( !activeSession() )
         return QString();
     return d->ownSessionDirectory();

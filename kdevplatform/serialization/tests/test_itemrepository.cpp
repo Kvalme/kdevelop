@@ -13,6 +13,9 @@ struct TestItem
         , m_dataSize(dataSize)
     {
     }
+
+    TestItem& operator=(const TestItem& rhs) = delete;
+
     //Every item has to implement this function, and return a valid hash.
     //Must be exactly the same hash value as ExampleItemRequest::hash() has returned while creating the item.
     unsigned int hash() const
@@ -65,7 +68,7 @@ struct TestItemRequest
 
     void createItem(TestItem* item) const
     {
-        memcpy(item, &m_item, m_item.itemSize());
+        memcpy(reinterpret_cast<void*>(item), &m_item, m_item.itemSize());
     }
 
     static void destroy(TestItem* /*item*/, AbstractItemRepository&)
@@ -225,7 +228,7 @@ private Q_SLOTS:
             repository.index(TestItemRequest(*item));
         }
 
-        foreach (auto item, items) {
+        for (auto item : qAsConst(items)) {
             delete[] item;
         }
     }

@@ -136,6 +136,8 @@ private:
 
 class TestFrameStackModel : public GdbFrameStackModel
 {
+    Q_OBJECT
+
 public:
 
     explicit TestFrameStackModel(DebugSession* session)
@@ -1284,11 +1286,11 @@ void GdbTest::testVariablesWatchesTwoSessions()
 
     //check if variable is marked as out-of-scope
     QCOMPARE(variableCollection()->watches()->childCount(), 1);
-    auto* v = dynamic_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
+    auto* v = qobject_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
     QVERIFY(v);
     QVERIFY(!v->inScope());
     QCOMPARE(v->childCount(), 3);
-    v = dynamic_cast<KDevelop::Variable*>(v->child(0));
+    v = qobject_cast<KDevelop::Variable*>(v->child(0));
     QVERIFY(!v->inScope());
 
     //start a second debug session
@@ -1300,12 +1302,12 @@ void GdbTest::testVariablesWatchesTwoSessions()
 
     QCOMPARE(variableCollection()->watches()->childCount(), 1);
     ts = variableCollection()->index(0, 0, variableCollection()->index(0, 0));
-    v = dynamic_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
+    v = qobject_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
     QVERIFY(v);
     QVERIFY(v->inScope());
     QCOMPARE(v->childCount(), 3);
 
-    v = dynamic_cast<KDevelop::Variable*>(v->child(0));
+    v = qobject_cast<KDevelop::Variable*>(v->child(0));
     QVERIFY(v->inScope());
     QCOMPARE(v->data(1, Qt::DisplayRole).toString(), QString::number(0));
 
@@ -1313,7 +1315,7 @@ void GdbTest::testVariablesWatchesTwoSessions()
     WAIT_FOR_STATE(session, DebugSession::EndedState);
 
     //check if variable is marked as out-of-scope
-    v = dynamic_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
+    v = qobject_cast<KDevelop::Variable*>(variableCollection()->watches()->child(0));
     QVERIFY(!v->inScope());
     QVERIFY(!dynamic_cast<KDevelop::Variable*>(v->child(0))->inScope());
 }
@@ -2034,7 +2036,8 @@ void GdbTest::testDebugInExternalTerminal()
 {
     TestLaunchConfiguration cfg;
 
-    foreach (const QString & console, QStringList() << "konsole" << "xterm" << "xfce4-terminal" << "gnome-terminal") {
+    const QStringList consoles { "konsole", "xterm", "xfce4-terminal", "gnome-terminal" };
+    for (const QString& console : consoles) {
 
         TestDebugSession* session = nullptr;
         if (QStandardPaths::findExecutable(console).isEmpty()) {

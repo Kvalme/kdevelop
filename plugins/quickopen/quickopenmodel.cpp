@@ -53,7 +53,7 @@ QStringList QuickOpenModel::allScopes() const
 {
     QStringList scopes;
     for (const ProviderEntry& provider : m_providers) {
-        foreach (const QString& scope, provider.scopes) {
+        for (const QString& scope : provider.scopes) {
             if (!scopes.contains(scope)) {
                 scopes << scope;
             }
@@ -118,7 +118,7 @@ void QuickOpenModel::enableProviders(const QStringList& _items, const QStringLis
     //We use 2 iterations here: In the first iteration, all providers that implement QuickOpenFileSetInterface are initialized, then the other ones.
     //The reason is that the second group can refer to the first one.
     for (ProviderList::iterator it = m_providers.begin(); it != m_providers.end(); ++it) {
-        if (!dynamic_cast<QuickOpenFileSetInterface*>((*it).provider)) {
+        if (!qobject_cast<QuickOpenFileSetInterface*>((*it).provider)) {
             continue;
         }
         qCDebug(PLUGIN_QUICKOPEN) << "comparing" << (*it).scopes << (*it).types;
@@ -136,7 +136,7 @@ void QuickOpenModel::enableProviders(const QStringList& _items, const QStringLis
     }
 
     for (ProviderList::iterator it = m_providers.begin(); it != m_providers.end(); ++it) {
-        if (dynamic_cast<QuickOpenFileSetInterface*>((*it).provider)) {
+        if (qobject_cast<QuickOpenFileSetInterface*>((*it).provider)) {
             continue;
         }
         qCDebug(PLUGIN_QUICKOPEN) << "comparing" << (*it).scopes << (*it).types;
@@ -162,7 +162,7 @@ void QuickOpenModel::textChanged(const QString& str)
     beginResetModel();
 
     m_filterText = str;
-    foreach (const ProviderEntry& provider, m_providers) {
+    for (const ProviderEntry& provider : qAsConst(m_providers)) {
         if (provider.enabled) {
             provider.provider->setFilterText(str);
         }
@@ -193,18 +193,16 @@ void QuickOpenModel::restart_internal(bool keepFilterText)
         m_filterText.clear();
     }
 
-    bool anyEnabled = false;
-
-    foreach (const ProviderEntry& e, m_providers) {
-        anyEnabled |= e.enabled;
-    }
+    bool anyEnabled = std::any_of(m_providers.constBegin(), m_providers.constEnd(), [](const ProviderEntry& e) {
+        return e.enabled;
+    });
 
     if (!anyEnabled) {
         return;
     }
 
-    foreach (const ProviderEntry& provider, m_providers) {
-        if (!dynamic_cast<QuickOpenFileSetInterface*>(provider.provider)) {
+    for (const ProviderEntry& provider : qAsConst(m_providers)) {
+        if (!qobject_cast<QuickOpenFileSetInterface*>(provider.provider)) {
             continue;
         }
 
@@ -214,8 +212,8 @@ void QuickOpenModel::restart_internal(bool keepFilterText)
         }
     }
 
-    foreach (const ProviderEntry& provider, m_providers) {
-        if (dynamic_cast<QuickOpenFileSetInterface*>(provider.provider)) {
+    for (const ProviderEntry& provider : qAsConst(m_providers)) {
+        if (qobject_cast<QuickOpenFileSetInterface*>(provider.provider)) {
             continue;
         }
 
@@ -440,7 +438,7 @@ QSet<IndexedString> QuickOpenModel::fileSet() const
     QSet<IndexedString> merged;
     for (const ProviderEntry& provider : m_providers) {
         if (m_enabledScopes.isEmpty() || !(m_enabledScopes & provider.scopes).isEmpty()) {
-            if (auto* iface = dynamic_cast<QuickOpenFileSetInterface*>(provider.provider)) {
+            if (auto* iface = qobject_cast<QuickOpenFileSetInterface*>(provider.provider)) {
                 QSet<IndexedString> ifiles = iface->files();
                 //qCDebug(PLUGIN_QUICKOPEN) << "got file-list with" << ifiles.count() << "entries from data-provider" << typeid(*iface).name();
                 merged += ifiles;

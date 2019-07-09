@@ -129,13 +129,11 @@ public:
         QString path = problem->finalLocation().document.str();
 
         /// See if we already have this path
-        ProblemStoreNode *parent = nullptr;
-        foreach (ProblemStoreNode *node, m_groupedRootNode->children()) {
-            if (node->label() == path) {
-                parent = node;
-                break;
-            }
-        }
+        const auto childrenNodes = m_groupedRootNode->children();
+        auto it = std::find_if(childrenNodes.begin(), childrenNodes.end(), [&](ProblemStoreNode* node) {
+            return (node->label() == path);
+        });
+        ProblemStoreNode* parent = (it != childrenNodes.end()) ? *it : nullptr;
 
         /// If not add it!
         if (parent == nullptr) {
@@ -223,7 +221,7 @@ public:
 
 FilteredProblemStore::FilteredProblemStore(QObject *parent)
     : ProblemStore(parent)
-    , d(new FilteredProblemStorePrivate(this))
+    , d_ptr(new FilteredProblemStorePrivate(this))
 {
 }
 
@@ -233,6 +231,8 @@ FilteredProblemStore::~FilteredProblemStore()
 
 void FilteredProblemStore::addProblem(const IProblem::Ptr &problem)
 {
+    Q_D(FilteredProblemStore);
+
     ProblemStore::addProblem(problem);
 
     if (d->match(problem))
@@ -241,27 +241,36 @@ void FilteredProblemStore::addProblem(const IProblem::Ptr &problem)
 
 const ProblemStoreNode* FilteredProblemStore::findNode(int row, ProblemStoreNode *parent) const
 {
+    Q_D(const FilteredProblemStore);
+
     return d->m_strategy->findNode(row, parent);
 }
 
 int FilteredProblemStore::count(ProblemStoreNode *parent) const
 {
+    Q_D(const FilteredProblemStore);
+
     return d->m_strategy->count(parent);
 }
 
 void FilteredProblemStore::clear()
 {
+    Q_D(FilteredProblemStore);
+
     d->m_strategy->clear();
     ProblemStore::clear();
 }
 
 void FilteredProblemStore::rebuild()
 {
+    Q_D(FilteredProblemStore);
+
     emit beginRebuild();
 
     d->m_strategy->clear();
 
-    foreach (ProblemStoreNode *node, rootNode()->children()) {
+    const auto childrenNodes = rootNode()->children();
+    for (ProblemStoreNode* node : childrenNodes) {
         IProblem::Ptr problem = node->problem();
         if (d->match(problem)) {
             d->m_strategy->addProblem(problem);
@@ -273,6 +282,8 @@ void FilteredProblemStore::rebuild()
 
 void FilteredProblemStore::setGrouping(int grouping)
 {
+    Q_D(FilteredProblemStore);
+
     auto g = GroupingMethod(grouping);
     if(g == d->m_grouping)
         return;
@@ -291,6 +302,8 @@ void FilteredProblemStore::setGrouping(int grouping)
 
 int FilteredProblemStore::grouping() const
 {
+    Q_D(const FilteredProblemStore);
+
     return d->m_grouping;
 }
 

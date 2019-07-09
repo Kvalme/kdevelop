@@ -60,10 +60,10 @@ WorkingSetToolTipWidget::WorkingSetToolTipWidget(QWidget* parent, WorkingSet* se
 
     layout->setMargin(0);
 
-    connect(static_cast<Sublime::MainWindow*>(mainwindow)->area(),
+    connect(mainwindow->area(),
             &Sublime::Area::viewAdded, this, &WorkingSetToolTipWidget::updateFileButtons,
             Qt::QueuedConnection);
-    connect(static_cast<Sublime::MainWindow*>(mainwindow)->area(),
+    connect(mainwindow->area(),
             &Sublime::Area::viewRemoved, this, &WorkingSetToolTipWidget::updateFileButtons,
             Qt::QueuedConnection);
 
@@ -158,7 +158,8 @@ WorkingSetToolTipWidget::WorkingSetToolTipWidget(QWidget* parent, WorkingSet* se
     auto* filesLayout = new QVBoxLayout;
     filesLayout->setMargin(0);
 
-    foreach(const QString& file, m_set->fileList()) {
+    const auto setFiles = m_set->fileList();
+    for (const QString& file : setFiles) {
 
         if(hadFiles.contains(file))
             continue;
@@ -260,7 +261,7 @@ void WorkingSetToolTipWidget::previousDocument()
 
 void WorkingSetToolTipWidget::updateFileButtons()
 {
-    auto* mainWindow = dynamic_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
+    auto* mainWindow = qobject_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
     Q_ASSERT(mainWindow);
 
     WorkingSetController* controller = Core::self()->workingSetControllerInternal();
@@ -346,7 +347,7 @@ void WorkingSetToolTipWidget::buttonClicked(bool)
     auto* s = qobject_cast<QToolButton*>(sender());
     Q_ASSERT(s);
 
-    auto* mainWindow = dynamic_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
+    auto* mainWindow = qobject_cast<MainWindow*>(Core::self()->uiController()->activeMainWindow());
     Q_ASSERT(mainWindow);
     QSet<QString> openFiles = Core::self()->workingSetControllerInternal()->workingSet(mainWindow->area()->workingSet())->fileList().toSet();
 
@@ -372,8 +373,8 @@ void WorkingSetToolTipWidget::labelClicked()
 
     auto* window = static_cast<Sublime::MainWindow*>(ICore::self()->uiController()->activeMainWindow());
 
-    foreach(Sublime::View* view, window->area()->views())
-    {
+    const auto views = window->area()->views();
+    for (Sublime::View* view : views) {
         if(view->document()->documentSpecifier() == s->objectName())
         {
             window->activateView(view);

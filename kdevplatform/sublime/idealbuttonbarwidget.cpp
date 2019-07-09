@@ -161,7 +161,7 @@ void IdealButtonBarWidget::addAction(QAction* qaction)
 {
     QWidget::addAction(qaction);
 
-    auto action = dynamic_cast<ToolViewAction*>(qaction);
+    auto action = qobject_cast<ToolViewAction*>(qaction);
     if (!action || action->button()) {
       return;
     }
@@ -231,8 +231,9 @@ bool IdealButtonBarWidget::lastShowState()
 
 QString IdealButtonBarWidget::id(const IdealToolButton* button) const
 {
-    foreach (QAction* a, actions()) {
-        auto tva = dynamic_cast<ToolViewAction*>(a);
+    const auto actions = this->actions();
+    for (QAction* a : actions) {
+        auto tva = qobject_cast<ToolViewAction*>(a);
         if (tva && tva->button() == button) {
             return tva->id();
         }
@@ -243,8 +244,9 @@ QString IdealButtonBarWidget::id(const IdealToolButton* button) const
 
 IdealToolButton* IdealButtonBarWidget::button(const QString& id) const
 {
-    foreach (QAction* a, actions()) {
-        auto tva = dynamic_cast<ToolViewAction*>(a);
+    const auto actions = this->actions();
+    for (QAction* a : actions) {
+        auto tva = qobject_cast<ToolViewAction*>(a);
         if (tva && tva->id() == id) {
             return tva->button();
         }
@@ -285,13 +287,13 @@ void IdealButtonBarWidget::applyOrderToLayout()
     // to situations when loaded order does not contains all existing buttons. Therefore we should
     // fix this with using addToOrder() method.
     for (int i = 0; i < m_buttonsLayout->count(); ++i) {
-        if (auto button = dynamic_cast<IdealToolButton*>(m_buttonsLayout->itemAt(i)->widget())) {
+        if (auto button = qobject_cast<IdealToolButton*>(m_buttonsLayout->itemAt(i)->widget())) {
             addButtonToOrder(button);
             m_buttonsLayout->removeWidget(button);
         }
     }
 
-    foreach(const QString& id, m_buttonsOrder) {
+    for (const QString& id : qAsConst(m_buttonsOrder)) {
         if (auto b = button(id)) {
             m_buttonsLayout->addWidget(b);
         }
@@ -302,7 +304,7 @@ void IdealButtonBarWidget::takeOrderFromLayout()
 {
     m_buttonsOrder.clear();
     for (int i = 0; i < m_buttonsLayout->count(); ++i) {
-        if (auto button = dynamic_cast<IdealToolButton*>(m_buttonsLayout->itemAt(i)->widget())) {
+        if (auto button = qobject_cast<IdealToolButton*>(m_buttonsLayout->itemAt(i)->widget())) {
             m_buttonsOrder += id(button);
         }
     }
@@ -344,7 +346,8 @@ void IdealButtonBarWidget::showWidget(QAction *action, bool checked)
             // The alternative to use a QActionCollection and setting that to "exclusive"
             // has a big drawback: QActions in a collection that is exclusive cannot
             // be un-checked by the user, e.g. in the View -> Tool Views menu.
-            foreach(QAction *otherAction, actions()) {
+            const auto actions = this->actions();
+            for (QAction* otherAction : actions) {
                 if ( otherAction != widgetAction && otherAction->isChecked() )
                     otherAction->setChecked(false);
             }

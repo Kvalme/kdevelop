@@ -32,6 +32,7 @@ class ProjectBaseItem;
 class ICore;
 class IProject;
 class ISession;
+class ProjectBuildSetModelPrivate;
 
 class KDEVPLATFORMPROJECT_EXPORT BuildItem
 {
@@ -40,6 +41,8 @@ public:
     explicit BuildItem( const QStringList& itemPath );
     BuildItem( const BuildItem& rhs );
     explicit BuildItem( KDevelop::ProjectBaseItem* );
+    ~BuildItem() = default;
+
     void initializeFromItem( KDevelop::ProjectBaseItem* item );
     KDevelop::ProjectBaseItem* findItem() const;
     BuildItem& operator=( const BuildItem& );
@@ -72,7 +75,7 @@ public:
     void moveRowsDown( int row, int count );
     void moveRowsToTop( int row, int count );
     void moveRowsToBottom( int row, int count );
-    QList<BuildItem> items();
+    QList<BuildItem> items() const;
 public Q_SLOTS:
     void saveToProject( KDevelop::IProject* ) const;
     void loadFromProject( KDevelop::IProject* );
@@ -84,7 +87,8 @@ private:
     void insertItemsOverrideCache( int index, const QList<KDevelop::BuildItem>& items );
 
 private:
-    const QScopedPointer<class ProjectBuildSetModelPrivate> d;
+    const QScopedPointer<class ProjectBuildSetModelPrivate> d_ptr;
+    Q_DECLARE_PRIVATE(ProjectBuildSetModel)
 };
 
 }

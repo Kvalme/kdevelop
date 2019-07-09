@@ -118,7 +118,7 @@ add_definitions(
 )
 
 # Turn off missing-field-initializers warning for GCC to avoid noise from false positives with empty {}
-# See discussion: http://mail.kde.org/pipermail/kdevelop-devel/2014-February/046910.html
+# See discussion: https://mail.kde.org/pipermail/kdevelop-devel/2014-February/046910.html
 add_compile_flag_if_supported(-Wno-missing-field-initializers)
 add_compile_flag_if_supported(-Werror=switch)
 add_compile_flag_if_supported(-Werror=undefined-bool-conversion)
@@ -160,6 +160,7 @@ add_subdirectory(app_templates)
 add_subdirectory(file_templates)
 add_subdirectory(shortcuts)
 add_subdirectory(doc)
+add_subdirectory(share)
 
 set(CMAKECONFIG_INSTALL_DIR "${KDE_INSTALL_CMAKEPACKAGEDIR}/KDevelop")
 configure_package_config_file("${CMAKE_CURRENT_SOURCE_DIR}/KDevelopConfig.cmake.in"

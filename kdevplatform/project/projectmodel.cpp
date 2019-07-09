@@ -83,7 +83,8 @@ public:
     }
     ProjectBaseItem* rootItem;
     ProjectModel* model;
-    ProjectBaseItem* itemFromIndex( const QModelIndex& idx ) {
+    ProjectBaseItem* itemFromIndex(const QModelIndex& idx) const
+    {
         if( !idx.isValid() ) {
             return rootItem;
         }
@@ -116,7 +117,8 @@ public:
     ProjectBaseItem::RenameStatus renameBaseItem(ProjectBaseItem* item, const QString& newName)
     {
         if (item->parent()) {
-            foreach(ProjectBaseItem* sibling, item->parent()->children()) {
+            const auto siblings = item->parent()->children();
+            for (ProjectBaseItem* sibling : siblings) {
                 if (sibling->text() == newName) {
                     return ProjectBaseItem::ExistingItemSameName;
                 }
@@ -178,7 +180,7 @@ ProjectBaseItem::~ProjectBaseItem()
     Q_D(ProjectBaseItem);
 
     if (model() && d->m_pathIndex) {
-        model()->d->pathLookupTable.remove(d->m_pathIndex, this);
+        model()->d_func()->pathLookupTable.remove(d->m_pathIndex, this);
     }
 
     if( parent() ) {
@@ -249,7 +251,7 @@ void ProjectBaseItem::removeRows(int row, int count)
     //NOTE: we unset parent, row and model manually to speed up the deletion
     if (row == 0 && count == d->children.size()) {
         // optimize if we want to delete all
-        foreach(ProjectBaseItem* item, d->children) {
+        for (ProjectBaseItem* item : qAsConst(d->children)) {
             item->d_func()->parent = nullptr;
             item->d_func()->row = -1;
             item->setModel( nullptr );
@@ -303,7 +305,7 @@ ProjectModel* ProjectBaseItem::model() const
 ProjectBaseItem* ProjectBaseItem::parent() const
 {
     Q_D(const ProjectBaseItem);
-    if( model() && model()->d->rootItem == d->parent ) {
+    if( model() && model()->d_func()->rootItem == d->parent ) {
         return nullptr;
     }
     return d->parent;
@@ -334,16 +336,16 @@ void ProjectBaseItem::setModel( ProjectModel* model )
     }
 
     if (d->model && d->m_pathIndex) {
-        d->model->d->pathLookupTable.remove(d->m_pathIndex, this);
+        d->model->d_func()->pathLookupTable.remove(d->m_pathIndex, this);
     }
 
     d->model = model;
 
     if (model && d->m_pathIndex) {
-        model->d->pathLookupTable.insert(d->m_pathIndex, this);
+        model->d_func()->pathLookupTable.insert(d->m_pathIndex, this);
     }
 
-    foreach( ProjectBaseItem* item, d->children ) {
+    for (ProjectBaseItem* item : qAsConst(d->children)) {
         item->setModel( model );
     }
 }
@@ -465,7 +467,7 @@ void ProjectBaseItem::setPath( const Path& path)
     Q_D(ProjectBaseItem);
 
     if (model() && d->m_pathIndex) {
-        model()->d->pathLookupTable.remove(d->m_pathIndex, this);
+        model()->d_func()->pathLookupTable.remove(d->m_pathIndex, this);
     }
 
     d->m_path = path;
@@ -473,7 +475,7 @@ void ProjectBaseItem::setPath( const Path& path)
     setText( path.lastPathSegment() );
 
     if (model() && d->m_pathIndex) {
-        model()->d->pathLookupTable.insert(d->m_pathIndex, this);
+        model()->d_func()->pathLookupTable.insert(d->m_pathIndex, this);
     }
 }
 
@@ -576,6 +578,8 @@ QList<ProjectFileItem*> ProjectBaseItem::fileList() const
 
 void ProjectModel::clear()
 {
+    Q_D(ProjectModel);
+
     d->rootItem->removeRows(0, d->rootItem->rowCount());
 }
 
@@ -630,8 +634,8 @@ void ProjectFolderItem::propagateRename( const Path& newBase ) const
 {
     Path path = newBase;
     path.addPath(QStringLiteral("dummy"));
-    foreach( KDevelop::ProjectBaseItem* child, children() )
-    {
+    const auto children = this->children();
+    for (KDevelop::ProjectBaseItem* child : children) {
         path.setLastPathSegment( child->text() );
         child->setPath( path );
 
@@ -649,15 +653,11 @@ ProjectBaseItem::RenameStatus ProjectFolderItem::rename(const QString& newName)
 
 bool ProjectFolderItem::hasFileOrFolder(const QString& name) const
 {
-    foreach ( ProjectBaseItem* item, children() )
-    {
-        if ( (item->type() == Folder || item->type() == File || item->type() == BuildFolder)
-             && name == item->baseName() )
-        {
-            return true;
-        }
-    }
-    return false;
+    const auto children = this->children();
+    return std::any_of(children.begin(), children.end(), [&](ProjectBaseItem* item) {
+        return ((item->type() == Folder || item->type() == File || item->type() == BuildFolder)
+                && name == item->baseName());
+    });
 }
 
 bool ProjectBaseItem::isProjectRoot() const
@@ -941,6 +941,8 @@ int ProjectModel::columnCount( const QModelIndex& ) const
 
 int ProjectModel::rowCount( const QModelIndex& parent ) const
 {
+    Q_D(const ProjectModel);
+
     ProjectBaseItem* item = d->itemFromIndex( parent );
     return item ? item->rowCount() : 0;
 }
@@ -1006,14 +1008,19 @@ QVariant ProjectModel::data( const QModelIndex& index, int role ) const
 }
 
 ProjectModel::ProjectModel( QObject *parent )
-        : QAbstractItemModel( parent ), d( new ProjectModelPrivate( this ) )
+    : QAbstractItemModel(parent)
+    , d_ptr(new ProjectModelPrivate(this))
 {
+    Q_D(ProjectModel);
+
     d->rootItem = new ProjectBaseItem( nullptr, QString(), nullptr );
     d->rootItem->setModel( this );
 }
 
 ProjectModel::~ProjectModel()
 {
+    Q_D(ProjectModel);
+
     d->rootItem->setModel(nullptr);
     delete d->rootItem;
 }
@@ -1025,6 +1032,8 @@ ProjectVisitor::ProjectVisitor()
 
 QModelIndex ProjectModel::index( int row, int column, const QModelIndex& parent ) const
 {
+    Q_D(const ProjectModel);
+
     ProjectBaseItem* parentItem = d->itemFromIndex( parent );
     if( parentItem && row >= 0 && row < parentItem->rowCount() && column == 0 ) {
         return createIndex( row, column, parentItem );
@@ -1034,26 +1043,36 @@ QModelIndex ProjectModel::index( int row, int column, const QModelIndex& parent 
 
 void ProjectModel::appendRow( ProjectBaseItem* item )
 {
+    Q_D(ProjectModel);
+
     d->rootItem->appendRow( item );
 }
 
 void ProjectModel::removeRow( int row )
 {
+    Q_D(ProjectModel);
+
     d->rootItem->removeRow( row );
 }
 
 ProjectBaseItem* ProjectModel::takeRow( int row )
 {
+    Q_D(ProjectModel);
+
     return d->rootItem->takeRow( row );
 }
 
 ProjectBaseItem* ProjectModel::itemAt(int row) const
 {
+    Q_D(const ProjectModel);
+
     return d->rootItem->child(row);
 }
 
 QList< ProjectBaseItem* > ProjectModel::topItems() const
 {
+    Q_D(const ProjectModel);
+
     return d->rootItem->children();
 }
 
@@ -1086,18 +1105,22 @@ bool ProjectModel::setData(const QModelIndex&, const QVariant&, int)
 
 QList<ProjectBaseItem*> ProjectModel::itemsForPath(const IndexedString& path) const
 {
+    Q_D(const ProjectModel);
+
     return d->pathLookupTable.values(path.index());
 }
 
 ProjectBaseItem* ProjectModel::itemForPath(const IndexedString& path) const
 {
+    Q_D(const ProjectModel);
+
     return d->pathLookupTable.value(path.index());
 }
 
 void ProjectVisitor::visit( ProjectModel* model )
 {
-    foreach( ProjectBaseItem* item, model->topItems() )
-    {
+    const auto topItems = model->topItems();
+    for (ProjectBaseItem* item : topItems) {
         visit( item->project() );
     }
 }
@@ -1114,20 +1137,20 @@ void ProjectVisitor::visit ( ProjectBuildFolderItem* folder )
 
 void ProjectVisitor::visit ( ProjectExecutableTargetItem* exec )
 {
-    foreach( ProjectFileItem* item, exec->fileList() )
-    {
+    const auto fileItems = exec->fileList();
+    for (ProjectFileItem* item : fileItems) {
         visit( item );
     }
 }
 
 void ProjectVisitor::visit ( ProjectFolderItem* folder )
 {
-    foreach( ProjectFileItem* item, folder->fileList() )
-    {
+    const auto fileItems = folder->fileList();
+    for (ProjectFileItem* item : fileItems) {
         visit( item );
     }
-    foreach( ProjectTargetItem* item, folder->targetList() )
-    {
+    const auto targetItems = folder->targetList();
+    for (ProjectTargetItem* item : targetItems) {
         if( item->type() == ProjectBaseItem::LibraryTarget )
         {
             visit( dynamic_cast<ProjectLibraryTargetItem*>( item ) );
@@ -1136,8 +1159,8 @@ void ProjectVisitor::visit ( ProjectFolderItem* folder )
             visit( dynamic_cast<ProjectExecutableTargetItem*>( item ) );
         }
     }
-    foreach( ProjectFolderItem* item, folder->folderList() )
-    {
+    const auto folderItems = folder->folderList();
+    for (ProjectFolderItem* item : folderItems) {
         if( item->type() == ProjectBaseItem::BuildFolder )
         {
             visit( dynamic_cast<ProjectBuildFolderItem*>( item ) );
@@ -1154,8 +1177,8 @@ void ProjectVisitor::visit ( ProjectFileItem* )
 
 void ProjectVisitor::visit ( ProjectLibraryTargetItem* lib )
 {
-    foreach( ProjectFileItem* item, lib->fileList() )
-    {
+    const auto fileItems = lib->fileList();
+    for (ProjectFileItem* item : fileItems) {
         visit( item );
     }
 }

@@ -54,14 +54,16 @@ class KDevelop::TemplateClassGeneratorPrivate
 public:
     SourceFileTemplate fileTemplate;
     QUrl baseUrl;
-    TemplateRenderer renderer;
+    // changes state when rendering
+    mutable TemplateRenderer renderer;
 
     QString name;
     QString identifier;
     QStringList namespaces;
     QString license;
 
-    QHash<QString, QUrl> fileUrls;
+    // lazily estimated
+    mutable QHash<QString, QUrl> fileUrls;
     QHash<QString, KTextEditor::Cursor> filePositions;
     ClassDescription description;
 
@@ -84,7 +86,8 @@ void TemplateClassGeneratorPrivate::fetchSuperClasses(const DeclarationPointer& 
 
     DUContext* context = declaration->internalContext();
     if (context) {
-        foreach (const DUContext::Import& import, context->importedParentContexts()) {
+        const auto importedParentContexts = context->importedParentContexts();
+        for (const DUContext::Import& import : importedParentContexts) {
             if (DUContext* parentContext = import.context(context->topContext())) {
                 if (parentContext->type() == DUContext::Class) {
                     fetchSuperClasses(DeclarationPointer(parentContext->owner()));
@@ -95,8 +98,10 @@ void TemplateClassGeneratorPrivate::fetchSuperClasses(const DeclarationPointer& 
 }
 
 TemplateClassGenerator::TemplateClassGenerator(const QUrl& baseUrl)
-    : d(new TemplateClassGeneratorPrivate)
+    : d_ptr(new TemplateClassGeneratorPrivate)
 {
+    Q_D(TemplateClassGenerator);
+
     Q_ASSERT(QFileInfo(baseUrl.toLocalFile()).isDir()); // assume folder
 
     d->baseUrl = baseUrl;
@@ -107,21 +112,29 @@ TemplateClassGenerator::~TemplateClassGenerator() = default;
 
 void TemplateClassGenerator::setTemplateDescription(const SourceFileTemplate& fileTemplate)
 {
+    Q_D(TemplateClassGenerator);
+
     d->fileTemplate = fileTemplate;
     Q_ASSERT(fileTemplate.isValid());
 }
 
 DocumentChangeSet TemplateClassGenerator::generate()
 {
+    Q_D(TemplateClassGenerator);
+
     return d->renderer.renderFileTemplate(d->fileTemplate, d->baseUrl, fileUrls());
 }
 
 QHash<QString, QString> TemplateClassGenerator::fileLabels() const
 {
+    Q_D(const TemplateClassGenerator);
+
     Q_ASSERT(d->fileTemplate.isValid());
     QHash<QString, QString> labels;
 
-    foreach (const SourceFileTemplate::OutputFile& outputFile, d->fileTemplate.outputFiles()) {
+    const auto outputFiles = d->fileTemplate.outputFiles();
+    labels.reserve(outputFiles.size());
+    for (const SourceFileTemplate::OutputFile& outputFile : outputFiles) {
         labels.insert(outputFile.identifier, outputFile.label);
     }
 
@@ -130,8 +143,11 @@ QHash<QString, QString> TemplateClassGenerator::fileLabels() const
 
 TemplateClassGenerator::UrlHash TemplateClassGenerator::fileUrls() const
 {
+    Q_D(const TemplateClassGenerator);
+
     if (d->fileUrls.isEmpty()) {
-        foreach (const SourceFileTemplate::OutputFile& outputFile, d->fileTemplate.outputFiles()) {
+        const auto outputFiles = d->fileTemplate.outputFiles();
+        for (const SourceFileTemplate::OutputFile& outputFile : outputFiles) {
             QString outputName = d->renderer.render(outputFile.outputName, outputFile.identifier);
             QUrl url = d->baseUrl.resolved(QUrl(outputName));
             d->fileUrls.insert(outputFile.identifier, url);
@@ -143,6 +159,8 @@ TemplateClassGenerator::UrlHash TemplateClassGenerator::fileUrls() const
 
 QUrl TemplateClassGenerator::baseUrl() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->baseUrl;
 }
 
@@ -153,6 +171,8 @@ QUrl TemplateClassGenerator::fileUrl(const QString& outputFile) const
 
 void TemplateClassGenerator::setFileUrl(const QString& outputFile, const QUrl& url)
 {
+    Q_D(TemplateClassGenerator);
+
     d->fileUrls.insert(outputFile, url);
     d->renderer.addVariable(QLatin1String("output_file_") + outputFile.toLower(), QDir(
                                 d->baseUrl.path()).relativeFilePath(url.path()));
@@ -162,41 +182,57 @@ void TemplateClassGenerator::setFileUrl(const QString& outputFile, const QUrl& u
 
 KTextEditor::Cursor TemplateClassGenerator::filePosition(const QString& outputFile) const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->filePositions.value(outputFile);
 }
 
 void TemplateClassGenerator::setFilePosition(const QString& outputFile, const KTextEditor::Cursor& position)
 {
+    Q_D(TemplateClassGenerator);
+
     d->filePositions.insert(outputFile, position);
 }
 
 void TemplateClassGenerator::addVariables(const QVariantHash& variables)
 {
+    Q_D(TemplateClassGenerator);
+
     d->renderer.addVariables(variables);
 }
 
 QString TemplateClassGenerator::renderString(const QString& text) const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->renderer.render(text);
 }
 
 SourceFileTemplate TemplateClassGenerator::sourceFileTemplate() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->fileTemplate;
 }
 
 TemplateRenderer* TemplateClassGenerator::renderer() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return &(d->renderer);
 }
 
 QString TemplateClassGenerator::name() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->name;
 }
 
 void TemplateClassGenerator::setName(const QString& newName)
 {
+    Q_D(TemplateClassGenerator);
+
     d->name = newName;
     d->renderer.addVariable(QStringLiteral("name"), newName);
 }
@@ -208,6 +244,8 @@ QString TemplateClassGenerator::identifier() const
 
 void TemplateClassGenerator::setIdentifier(const QString& identifier)
 {
+    Q_D(TemplateClassGenerator);
+
     d->renderer.addVariable(QStringLiteral("identifier"), identifier);
     const QStringList separators{
         QStringLiteral("::"),
@@ -230,11 +268,15 @@ void TemplateClassGenerator::setIdentifier(const QString& identifier)
 
 QStringList TemplateClassGenerator::namespaces() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->namespaces;
 }
 
-void TemplateClassGenerator::setNamespaces(const QStringList& namespaces) const
+void TemplateClassGenerator::setNamespaces(const QStringList& namespaces)
 {
+    Q_D(TemplateClassGenerator);
+
     d->namespaces = namespaces;
     d->renderer.addVariable(QStringLiteral("namespaces"), namespaces);
 }
@@ -242,6 +284,8 @@ void TemplateClassGenerator::setNamespaces(const QStringList& namespaces) const
 /// Specify license for this class
 void TemplateClassGenerator::setLicense(const QString& license)
 {
+    Q_D(TemplateClassGenerator);
+
     qCDebug(LANGUAGE) << "New Class: " << d->name << "Set license: " << d->license;
     d->license = license;
     d->renderer.addVariable(QStringLiteral("license"), license);
@@ -250,11 +294,15 @@ void TemplateClassGenerator::setLicense(const QString& license)
 /// Get the license specified for this classes
 QString TemplateClassGenerator::license() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->license;
 }
 
 void TemplateClassGenerator::setDescription(const ClassDescription& description)
 {
+    Q_D(TemplateClassGenerator);
+
     d->description = description;
 
     QVariantHash variables;
@@ -267,11 +315,15 @@ void TemplateClassGenerator::setDescription(const ClassDescription& description)
 
 ClassDescription TemplateClassGenerator::description() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->description;
 }
 
 void TemplateClassGenerator::addBaseClass(const QString& base)
 {
+    Q_D(TemplateClassGenerator);
+
     const InheritanceDescription desc = descriptionFromString(base);
 
     ClassDescription cd = description();
@@ -301,6 +353,8 @@ void TemplateClassGenerator::addBaseClass(const QString& base)
 
 void TemplateClassGenerator::setBaseClasses(const QList<QString>& bases)
 {
+    Q_D(TemplateClassGenerator);
+
     // clear
     ClassDescription cd = description();
     cd.baseClasses.clear();
@@ -317,10 +371,14 @@ void TemplateClassGenerator::setBaseClasses(const QList<QString>& bases)
 
 QList<DeclarationPointer> TemplateClassGenerator::directBaseClasses() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->directBaseClasses;
 }
 
 QList<DeclarationPointer> TemplateClassGenerator::allBaseClasses() const
 {
+    Q_D(const TemplateClassGenerator);
+
     return d->allBaseClasses;
 }

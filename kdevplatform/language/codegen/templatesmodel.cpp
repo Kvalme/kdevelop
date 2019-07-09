@@ -72,7 +72,7 @@ public:
         Template,
         Preview
     };
-    QString resourceFilter(ResourceType type, const QString& suffix = QString())
+    QString resourceFilter(ResourceType type, const QString& suffix = QString()) const
     {
         QString filter = typePrefix;
         switch (type) {
@@ -100,7 +100,7 @@ TemplatesModelPrivate::TemplatesModelPrivate(const QString& _typePrefix)
 
 TemplatesModel::TemplatesModel(const QString& typePrefix, QObject* parent)
     : QStandardItemModel(parent)
-    , d(new TemplatesModelPrivate(typePrefix))
+    , d_ptr(new TemplatesModelPrivate(typePrefix))
 {
 }
 
@@ -108,13 +108,15 @@ TemplatesModel::~TemplatesModel() = default;
 
 void TemplatesModel::refresh()
 {
+    Q_D(TemplatesModel);
+
     clear();
     d->templateItems.clear();
     d->templateItems[QString()] = invisibleRootItem();
     d->extractTemplateDescriptions();
 
     QStringList templateArchives;
-    foreach (const QString& archivePath, d->searchPaths) {
+    for (const QString& archivePath : qAsConst(d->searchPaths)) {
         const QStringList files = QDir(archivePath).entryList(QDir::Files);
         for (const QString& file : files) {
             templateArchives.append(archivePath + file);
@@ -132,10 +134,10 @@ void TemplatesModel::refresh()
         }
     }
 
-    foreach (const QString& templateDescription, templateDescriptions) {
+    for (const QString& templateDescription : qAsConst(templateDescriptions)) {
         QFileInfo fi(templateDescription);
         bool archiveFound = false;
-        foreach (const QString& templateArchive, templateArchives) {
+        for (const QString& templateArchive : qAsConst(templateArchives)) {
             if (QFileInfo(templateArchive).baseName() == fi.baseName()) {
                 archiveFound = true;
 
@@ -194,7 +196,7 @@ void TemplatesModelPrivate::extractTemplateDescriptions()
     searchPaths << QStandardPaths::locateAll(QStandardPaths::GenericDataLocation, resourceFilter(
                                                  Template), QStandardPaths::LocateDirectory);
     searchPaths.removeDuplicates();
-    foreach (const QString& archivePath, searchPaths) {
+    for (const QString& archivePath : qAsConst(searchPaths)) {
         const QStringList files = QDir(archivePath).entryList(QDir::Files);
         for (const QString& file : files) {
             if (file.endsWith(QLatin1String(".zip")) || file.endsWith(QLatin1String(".tar.bz2"))) {
@@ -211,7 +213,7 @@ void TemplatesModelPrivate::extractTemplateDescriptions()
     if (!dir.exists())
         dir.mkpath(QStringLiteral("."));
 
-    foreach (const QString& archName, templateArchives) {
+    for (const QString& archName : qAsConst(templateArchives)) {
         qCDebug(LANGUAGE) << "processing template" << archName;
 
         QScopedPointer<KArchive> templateArchive;
@@ -298,6 +300,8 @@ void TemplatesModelPrivate::extractTemplateDescriptions()
 
 QModelIndexList TemplatesModel::templateIndexes(const QString& fileName) const
 {
+    Q_D(const TemplatesModel);
+
     QFileInfo info(fileName);
     QString description =
         QStandardPaths::locate(QStandardPaths::GenericDataLocation,
@@ -342,17 +346,23 @@ QModelIndexList TemplatesModel::templateIndexes(const QString& fileName) const
 
 QString TemplatesModel::typePrefix() const
 {
+    Q_D(const TemplatesModel);
+
     return d->typePrefix;
 }
 
 void TemplatesModel::addDataPath(const QString& path)
 {
+    Q_D(TemplatesModel);
+
     QString realpath = path + d->resourceFilter(TemplatesModelPrivate::Template);
     d->searchPaths.append(realpath);
 }
 
 QString TemplatesModel::loadTemplateFile(const QString& fileName)
 {
+    Q_D(TemplatesModel);
+
     QString saveLocation = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QLatin1Char('/') +
                            d->resourceFilter(TemplatesModelPrivate::Template);
 

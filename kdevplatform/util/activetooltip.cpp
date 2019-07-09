@@ -151,7 +151,7 @@ void ActiveToolTipManager::doVisibility()
     }
 
     //Final step: Show tooltips
-    foreach (const auto& tooltip, registeredToolTips) {
+    for (const auto& tooltip : qAsConst(registeredToolTips)) {
         if (tooltip.first.data() && masterWidget(tooltip.first.data())->isActiveWindow()) {
             tooltip.first.data()->show();
         }
@@ -175,8 +175,10 @@ public:
 
 ActiveToolTip::ActiveToolTip(QWidget* parent, const QPoint& position)
     : QWidget(parent, Qt::ToolTip)
-    , d(new ActiveToolTipPrivate)
+    , d_ptr(new ActiveToolTipPrivate)
 {
+    Q_D(ActiveToolTip);
+
     Q_ASSERT(parent);
     setMouseTracking(true);
     d->rect_ = QRect(position, position);
@@ -203,6 +205,8 @@ ActiveToolTip::~ActiveToolTip() = default;
 
 bool ActiveToolTip::eventFilter(QObject* object, QEvent* e)
 {
+    Q_D(ActiveToolTip);
+
     switch (e->type()) {
     case QEvent::MouseMove:
         if (underMouse() || insideThis(object)) {
@@ -239,13 +243,17 @@ bool ActiveToolTip::eventFilter(QObject* object, QEvent* e)
 
 void ActiveToolTip::addFriendWidget(QWidget* widget)
 {
+    Q_D(ActiveToolTip);
+
     d->friendWidgets_.append(( QObject* )widget);
 }
 
 bool ActiveToolTip::insideThis(QObject* object)
 {
+    Q_D(ActiveToolTip);
+
     while (object) {
-        if (dynamic_cast<QMenu*>(object)) {
+        if (qobject_cast<QMenu*>(object)) {
             return true;
         }
 
@@ -293,11 +301,15 @@ void ActiveToolTip::paintEvent(QPaintEvent* event)
 
 void ActiveToolTip::setHandleRect(const QRect& rect)
 {
+    Q_D(ActiveToolTip);
+
     d->handleRect_ = rect;
 }
 
 void ActiveToolTip::adjustRect()
 {
+    Q_D(ActiveToolTip);
+
     // For tooltip widget, geometry() returns global coordinates.
     QRect r = geometry();
     r.adjust(-10, -10, 10, 10);
@@ -306,6 +318,8 @@ void ActiveToolTip::adjustRect()
 
 void ActiveToolTip::setBoundingGeometry(const QRect& geometry)
 {
+    Q_D(ActiveToolTip);
+
     d->rect_ = geometry;
     d->rect_.adjust(-10, -10, 10, 10);
 }
@@ -314,7 +328,7 @@ void ActiveToolTip::showToolTip(ActiveToolTip* tooltip, float priority, const QS
 {
     auto& registeredToolTips = manager()->registeredToolTips;
     if (!uniqueId.isEmpty()) {
-        foreach (const auto& tooltip, registeredToolTips) {
+        for (const auto& tooltip : qAsConst(registeredToolTips)) {
             if (tooltip.second == uniqueId) {
                 delete tooltip.first.data();
             }

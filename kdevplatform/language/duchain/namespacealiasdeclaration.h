@@ -33,6 +33,8 @@ public:
         , m_importIdentifier(rhs.m_importIdentifier)
     {
     }
+    ~NamespaceAliasDeclarationData() = default;
+    NamespaceAliasDeclarationData& operator=(const NamespaceAliasDeclarationData& rhs) = delete;
     IndexedQualifiedIdentifier m_importIdentifier; //The identifier that was imported
 };
 /**
@@ -57,6 +59,9 @@ public:
     explicit NamespaceAliasDeclaration(NamespaceAliasDeclarationData& data);
 
     ~NamespaceAliasDeclaration() override;
+
+    NamespaceAliasDeclaration& operator=(const NamespaceAliasDeclaration& rhs) = delete;
+
     ///A NamespaceAliasDeclaration cannot have a type, so setAbstractType does nothing here.
     void setAbstractType(AbstractType::Ptr type) override;
 

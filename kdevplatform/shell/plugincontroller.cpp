@@ -176,7 +176,8 @@ public:
         }
         const QStringList interfaces = KPluginMetaData::readStringList(plugin.rawData(), KEY_Interfaces());
         qCDebug(SHELL) << "checking dependencies:" << interfaces;
-        foreach (const KPluginMetaData& info, loadedPlugins.keys()) {
+        for (auto it = loadedPlugins.constBegin(), end = loadedPlugins.constEnd(); it != end; ++it) {
+            const KPluginMetaData& info = it.key();
             if (info.pluginId() != plugin.pluginId()) {
                 const QStringList dependencies =
                     KPluginMetaData::readStringList(plugin.rawData(), KEY_Required()) +
@@ -215,9 +216,10 @@ public:
      * should be continued.
      */
     template<typename F>
-    void foreachEnabledPlugin(F func, const QString &extension = {}, const QVariantMap& constraints = QVariantMap(), const QString &pluginName = {})
+    void foreachEnabledPlugin(F func, const QString &extension = {}, const QVariantMap& constraints = QVariantMap(), const QString &pluginName = {}) const
     {
-        foreach (const auto& info, plugins) {
+        const auto currentPlugins = plugins;
+        for (const auto& info : currentPlugins) {
             if ((pluginName.isEmpty() || info.pluginId() == pluginName)
                 && (extension.isEmpty() || KPluginMetaData::readStringList(info.rawData(), KEY_Interfaces()).contains(extension))
                 && constraintsMatch(info, constraints)
@@ -278,8 +280,10 @@ public:
 
 PluginController::PluginController(Core *core)
     : IPluginController()
-    , d(new PluginControllerPrivate(core))
+    , d_ptr(new PluginControllerPrivate(core))
 {
+    Q_D(PluginController);
+
     setObjectName(QStringLiteral("PluginController"));
 
     QSet<QString> foundPlugins;
@@ -331,6 +335,8 @@ PluginController::PluginController(Core *core)
 
 PluginController::~PluginController()
 {
+    Q_D(PluginController);
+
     if ( d->cleanupMode != PluginControllerPrivate::CleanupDone ) {
         qCWarning(SHELL) << "Destructing plugin controller without going through the shutdown process!";
     }
@@ -338,11 +344,15 @@ PluginController::~PluginController()
 
 KPluginMetaData PluginController::pluginInfo( const IPlugin* plugin ) const
 {
+    Q_D(const PluginController);
+
     return d->loadedPlugins.key(const_cast<IPlugin*>(plugin));
 }
 
 void PluginController::cleanup()
 {
+    Q_D(PluginController);
+
     if(d->cleanupMode != PluginControllerPrivate::Running)
     {
         //qCDebug(SHELL) << "called when not running. state =" << d->cleanupMode;
@@ -368,14 +378,15 @@ IPlugin* PluginController::loadPlugin( const QString& pluginName )
 
 void PluginController::initialize()
 {
+    Q_D(PluginController);
+
     QElapsedTimer timer;
     timer.start();
 
     QMap<QString, bool> pluginMap;
     if( ShellExtension::getInstance()->defaultPlugins().isEmpty() )
     {
-        foreach( const KPluginMetaData& pi, d->plugins )
-        {
+        for (const KPluginMetaData& pi : qAsConst(d->plugins)) {
             QJsonValue enabledByDefaultValue = pi.rawData()[KEY_KPlugin()].toObject()[KEY_EnabledByDefault()];
             // plugins enabled until explicitly specified otherwise
             const bool enabledByDefault = (enabledByDefaultValue.isNull() || enabledByDefaultValue.toBool());
@@ -384,8 +395,8 @@ void PluginController::initialize()
     } else
     {
         // Get the default from the ShellExtension
-        foreach( const QString& s, ShellExtension::getInstance()->defaultPlugins() )
-        {
+        const auto defaultPlugins = ShellExtension::getInstance()->defaultPlugins();
+        for (const QString& s : defaultPlugins) {
             pluginMap.insert( s, true );
         }
     }
@@ -406,7 +417,7 @@ void PluginController::initialize()
     }
 
     // store current known set of enabled plugins
-    foreach (const KPluginMetaData& pi, d->plugins) {
+    for (const KPluginMetaData& pi : qAsConst(d->plugins)) {
         if (isUserSelectable(pi)) {
             auto it = pluginMap.constFind(pi.pluginId());
             if (it != pluginMap.constEnd() && (it.value())) {
@@ -421,7 +432,7 @@ void PluginController::initialize()
     grp.sync();
 
     // load global plugins
-    foreach (const KPluginMetaData& pi, d->plugins) {
+    for (const KPluginMetaData& pi : qAsConst(d->plugins)) {
         if (isGlobalPlugin(pi)) {
             loadPluginInternal(pi.pluginId());
         }
@@ -432,11 +443,15 @@ void PluginController::initialize()
 
 QList<IPlugin *> PluginController::loadedPlugins() const
 {
+    Q_D(const PluginController);
+
     return d->loadedPlugins.values();
 }
 
 bool PluginController::unloadPlugin( const QString & pluginId )
 {
+    Q_D(PluginController);
+
     IPlugin *thePlugin = plugin( pluginId );
     bool canUnload = d->canUnload( d->infoForId( pluginId ) );
     qCDebug(SHELL) << "Unloading plugin:" << pluginId << "?" << thePlugin << canUnload;
@@ -449,6 +464,8 @@ bool PluginController::unloadPlugin( const QString & pluginId )
 
 bool PluginController::unloadPlugin(IPlugin* plugin, PluginDeletion deletion)
 {
+    Q_D(PluginController);
+
     qCDebug(SHELL) << "unloading plugin:" << plugin << pluginInfo( plugin ).name();
 
     emit unloadingPlugin(plugin);
@@ -480,17 +497,18 @@ bool PluginController::unloadPlugin(IPlugin* plugin, PluginDeletion deletion)
 
 KPluginMetaData PluginController::infoForPluginId( const QString &pluginId ) const
 {
-    foreach (const KPluginMetaData& info, d->plugins) {
-        if (info.pluginId() == pluginId) {
-            return info;
-        }
-    }
+    Q_D(const PluginController);
 
-    return KPluginMetaData();
+    auto it = std::find_if(d->plugins.constBegin(), d->plugins.constEnd(), [&](const KPluginMetaData& info) {
+        return (info.pluginId() == pluginId);
+    });
+    return (it != d->plugins.constEnd()) ? *it : KPluginMetaData();
 }
 
 IPlugin *PluginController::loadPluginInternal( const QString &pluginId )
 {
+    Q_D(PluginController);
+
     QElapsedTimer timer;
     timer.start();
 
@@ -598,8 +616,10 @@ IPlugin *PluginController::loadPluginInternal( const QString &pluginId )
 }
 
 
-IPlugin* PluginController::plugin( const QString& pluginId )
+IPlugin* PluginController::plugin(const QString& pluginId) const
 {
+    Q_D(const PluginController);
+
     KPluginMetaData info = infoForPluginId( pluginId );
     if ( !info.isValid() )
         return nullptr;
@@ -609,10 +629,13 @@ IPlugin* PluginController::plugin( const QString& pluginId )
 
 bool PluginController::hasUnresolvedDependencies( const KPluginMetaData& info, QStringList& missing ) const
 {
+    Q_D(const PluginController);
+
     QSet<QString> required = KPluginMetaData::readStringList(info.rawData(), KEY_Required()).toSet();
     if (!required.isEmpty()) {
         d->foreachEnabledPlugin([&required] (const KPluginMetaData& plugin) -> bool {
-            foreach (const QString& iface, KPluginMetaData::readStringList(plugin.rawData(), KEY_Interfaces())) {
+            const auto interfaces = KPluginMetaData::readStringList(plugin.rawData(), KEY_Interfaces());
+            for (const QString& iface : interfaces) {
                 required.remove(iface);
                 required.remove(iface + QLatin1Char('@') + plugin.pluginId());
             }
@@ -653,8 +676,12 @@ bool PluginController::loadDependencies( const KPluginMetaData& info, QString& f
 
 IPlugin *PluginController::pluginForExtension(const QString &extension, const QString &pluginName, const QVariantMap& constraints)
 {
+    Q_D(PluginController);
+
     IPlugin* plugin = nullptr;
     d->foreachEnabledPlugin([this, &plugin] (const KPluginMetaData& info) -> bool {
+        Q_D(PluginController);
+
         plugin = d->loadedPlugins.value( info );
         if( !plugin ) {
             plugin = loadPluginInternal( info.pluginId() );
@@ -667,9 +694,13 @@ IPlugin *PluginController::pluginForExtension(const QString &extension, const QS
 
 QList<IPlugin*> PluginController::allPluginsForExtension(const QString &extension, const QVariantMap& constraints)
 {
+    Q_D(PluginController);
+
     //qCDebug(SHELL) << "Finding all Plugins for Extension:" << extension << "|" << constraints;
     QList<IPlugin*> plugins;
     d->foreachEnabledPlugin([this, &plugins] (const KPluginMetaData& info) -> bool {
+        Q_D(PluginController);
+
         IPlugin* plugin = d->loadedPlugins.value( info );
         if( !plugin) {
             plugin = loadPluginInternal( info.pluginId() );
@@ -684,6 +715,8 @@ QList<IPlugin*> PluginController::allPluginsForExtension(const QString &extensio
 
 QVector<KPluginMetaData> PluginController::queryExtensionPlugins(const QString& extension, const QVariantMap& constraints) const
 {
+    Q_D(const PluginController);
+
     QVector<KPluginMetaData> plugins;
     d->foreachEnabledPlugin([&plugins] (const KPluginMetaData& info) -> bool {
         plugins << info;
@@ -694,10 +727,11 @@ QVector<KPluginMetaData> PluginController::queryExtensionPlugins(const QString& 
 
 QStringList PluginController::allPluginNames()
 {
+    Q_D(PluginController);
+
     QStringList names;
     names.reserve(d->plugins.size());
-    Q_FOREACH( const KPluginMetaData& info , d->plugins )
-    {
+    for (const KPluginMetaData& info : qAsConst(d->plugins)) {
         names << info.pluginId();
     }
     return names;
@@ -705,6 +739,8 @@ QStringList PluginController::allPluginNames()
 
 QList<ContextMenuExtension> PluginController::queryPluginsForContextMenuExtensions(KDevelop::Context* context, QWidget* parent) const
 {
+    Q_D(const PluginController);
+
     // This fixes random order of extension menu items between different runs of KDevelop.
     // Without sorting we have random reordering of "Analyze With" submenu for example:
     // 1) "Cppcheck" actions, "Vera++" actions - first run
@@ -716,7 +752,7 @@ QList<ContextMenuExtension> PluginController::queryPluginsForContextMenuExtensio
 
     QList<ContextMenuExtension> exts;
     exts.reserve(sortedPlugins.size());
-    foreach (IPlugin* plugin, sortedPlugins) {
+    for (IPlugin* plugin : qAsConst(sortedPlugins)) {
         exts << plugin->contextMenuExtension(context, parent);
     }
 
@@ -729,10 +765,12 @@ QList<ContextMenuExtension> PluginController::queryPluginsForContextMenuExtensio
     return exts;
 }
 
-QStringList PluginController::projectPlugins()
+QStringList PluginController::projectPlugins() const
 {
+    Q_D(const PluginController);
+
     QStringList names;
-    foreach (const KPluginMetaData& info, d->plugins) {
+    for (const KPluginMetaData& info : qAsConst(d->plugins)) {
         if (info.value(KEY_Category()) == KEY_Project()) {
             names << info.pluginId();
         }
@@ -742,31 +780,34 @@ QStringList PluginController::projectPlugins()
 
 void PluginController::loadProjectPlugins()
 {
-    Q_FOREACH( const QString& name, projectPlugins() )
-    {
+    const auto pluginNames = projectPlugins();
+    for (const QString& name : pluginNames) {
         loadPluginInternal( name );
     }
 }
 
 void PluginController::unloadProjectPlugins()
 {
-    Q_FOREACH( const QString& name, projectPlugins() )
-    {
+    const auto pluginNames = projectPlugins();
+    for (const QString& name : pluginNames) {
         unloadPlugin( name );
     }
 }
 
 QVector<KPluginMetaData> PluginController::allPluginInfos() const
 {
+    Q_D(const PluginController);
+
     return d->plugins;
 }
 
 void PluginController::updateLoadedPlugins()
 {
+    Q_D(PluginController);
+
     QStringList defaultPlugins = ShellExtension::getInstance()->defaultPlugins();
     KConfigGroup grp = Core::self()->activeSession()->config()->group( KEY_Plugins() );
-    foreach( const KPluginMetaData& info, d->plugins )
-    {
+    for (const KPluginMetaData& info : qAsConst(d->plugins)) {
         if( isGlobalPlugin( info ) )
         {
             bool enabled = grp.readEntry(info.pluginId() + KEY_Suffix_Enabled(), ( defaultPlugins.isEmpty() || defaultPlugins.contains( info.pluginId() ) ) ) || !isUserSelectable( info );
@@ -789,6 +830,8 @@ void PluginController::updateLoadedPlugins()
 
 void PluginController::resetToDefaults()
 {
+    Q_D(PluginController);
+
     KSharedConfigPtr cfg = Core::self()->activeSession()->config();
     cfg->deleteGroup( KEY_Plugins() );
     cfg->sync();
@@ -796,8 +839,7 @@ void PluginController::resetToDefaults()
     QStringList plugins = ShellExtension::getInstance()->defaultPlugins();
     if( plugins.isEmpty() )
     {
-        foreach( const KPluginMetaData& info, d->plugins )
-        {
+        for (const KPluginMetaData& info : qAsConst(d->plugins)) {
             if (!isUserSelectable(info)) {
                 continue;
             }
@@ -809,8 +851,7 @@ void PluginController::resetToDefaults()
             }
         }
     }
-    foreach( const QString& s, plugins )
-    {
+    for (const QString& s : qAsConst(plugins)) {
         grp.writeEntry(s + KEY_Suffix_Enabled(), true);
     }
     grp.sync();

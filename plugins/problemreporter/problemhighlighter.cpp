@@ -115,12 +115,13 @@ void ProblemHighlighter::setProblems(const QVector<IProblem::Ptr>& problems)
     ///      this method...
     const uint errorMarkType = KTextEditor::MarkInterface::Error;
     const uint warningMarkType = KTextEditor::MarkInterface::Warning;
-    auto* markIface = dynamic_cast<KTextEditor::MarkInterface*>(m_document.data());
+    auto* markIface = qobject_cast<KTextEditor::MarkInterface*>(m_document.data());
     if (markIface && hadProblems) {
         // clear previously added marks
-        foreach (KTextEditor::Mark* mark, markIface->marks()) {
-            if (mark->type == errorMarkType || mark->type == warningMarkType) {
-                markIface->removeMark(mark->line, mark->type);
+        const auto oldMarks = markIface->marks();
+        for (KTextEditor::Mark* mark : oldMarks) {
+            if (mark->type & (errorMarkType | warningMarkType)) {
+                markIface->removeMark(mark->line, errorMarkType | warningMarkType);
             }
         }
     }
@@ -133,7 +134,7 @@ void ProblemHighlighter::setProblems(const QVector<IProblem::Ptr>& problems)
 
     TopDUContext* top = DUChainUtils::standardContextForUrl(m_document->url());
 
-    auto* iface = dynamic_cast<KTextEditor::MovingInterface*>(m_document.data());
+    auto* iface = qobject_cast<KTextEditor::MovingInterface*>(m_document.data());
     Q_ASSERT(iface);
 
     for (const IProblem::Ptr& problem : problems) {

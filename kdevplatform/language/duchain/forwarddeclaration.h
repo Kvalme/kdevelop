@@ -35,6 +35,8 @@ public:
         : DeclarationData(rhs)
     {
     }
+    ~ForwardDeclarationData() = default;
+    ForwardDeclarationData& operator=(const ForwardDeclarationData& rhs) = delete;
 };
 /**
  * Represents a forward declaration
@@ -59,6 +61,8 @@ public:
 
     /// Destructor.
     ~ForwardDeclaration() override;
+
+    ForwardDeclaration& operator=(const ForwardDeclaration& rhs) = delete;
 
     bool isForwardDeclaration() const override;
 

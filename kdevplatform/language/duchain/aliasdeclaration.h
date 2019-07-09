@@ -35,6 +35,9 @@ public:
         , m_aliasedDeclaration(rhs.m_aliasedDeclaration)
     {
     }
+    ~AliasDeclarationData() = default;
+    AliasDeclarationData& operator=(const AliasDeclarationData& rhs) = delete;
+
     IndexedDeclaration m_aliasedDeclaration;
 };
 /**
@@ -59,6 +62,8 @@ public:
     explicit AliasDeclaration(AliasDeclarationData& data);
     /// Destructor
     ~AliasDeclaration() override;
+
+    AliasDeclaration& operator=(const AliasDeclaration& rhs) = delete;
 
     /**
      * An AliasDeclaration cannot have a type, so setAbstractType does nothing here.

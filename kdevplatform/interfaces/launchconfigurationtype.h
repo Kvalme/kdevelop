@@ -37,6 +37,7 @@ class ILaunchConfiguration;
 class ProjectBaseItem;
 class ILauncher;
 class LaunchConfigurationPageFactory;
+class LaunchConfigurationTypePrivate;
 
 /**
  * Launch configuration types are used to be able to create
@@ -89,7 +90,7 @@ public:
      * @param id the id of the launcher to be found
      * @returns the launcher with the given id or 0 if there's no such launcher in this configuration type
      */
-    ILauncher* launcherForId( const QString& id );
+    ILauncher* launcherForId(const QString& id) const;
 
     /**
      * Provide a list of widgets to configure a launch configuration for this type
@@ -145,7 +146,8 @@ Q_SIGNALS:
     void signalAddLaunchConfiguration(KDevelop::ILaunchConfiguration* launch);
 
 private:
-    const QScopedPointer<class LaunchConfigurationTypePrivate> d;
+    const QScopedPointer<class LaunchConfigurationTypePrivate> d_ptr;
+    Q_DECLARE_PRIVATE(LaunchConfigurationType)
 };
 
 }

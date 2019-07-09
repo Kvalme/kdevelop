@@ -64,7 +64,11 @@ StatusbarProgressWidget::StatusbarProgressWidget( ProgressDialog* progressDialog
       mDelayTimer( nullptr ), mCleanTimer( nullptr )
 {
     m_bShowButton = button;
+#if (QT_VERSION >= QT_VERSION_CHECK(5, 11, 0))
+    int w = fontMetrics().horizontalAdvance(QStringLiteral(" 999.9 kB/s 00:00:01 ")) + 8;
+#else
     int w = fontMetrics().width( QStringLiteral(" 999.9 kB/s 00:00:01 ") ) + 8;
+#endif
     box = new QHBoxLayout( this );
     box->setMargin(0);
     box->setSpacing(0);
@@ -338,7 +342,7 @@ void StatusbarProgressWidget::slotClean()
     }
 }
 
-bool StatusbarProgressWidget::eventFilter( QObject *, QEvent *ev )
+bool StatusbarProgressWidget::eventFilter(QObject* object, QEvent* ev)
 {
     if ( ev->type() == QEvent::MouseButtonPress ) {
         auto *e = (QMouseEvent*)ev;
@@ -350,7 +354,7 @@ bool StatusbarProgressWidget::eventFilter( QObject *, QEvent *ev )
             return true;
         }
     }
-    return false;
+    return QFrame::eventFilter(object, ev);
 }
 
 void StatusbarProgressWidget::slotProgressDialogVisible( bool b )

@@ -142,7 +142,7 @@ void CompilerFilterStrategyPrivate::putDirAtEnd(const Path& pathToInsert)
 }
 
 CompilerFilterStrategy::CompilerFilterStrategy(const QUrl& buildDir)
-: d(new CompilerFilterStrategyPrivate( buildDir ))
+    : d_ptr(new CompilerFilterStrategyPrivate(buildDir))
 {
 }
 
@@ -150,9 +150,11 @@ CompilerFilterStrategy::~CompilerFilterStrategy() = default;
 
 QVector<QString> CompilerFilterStrategy::currentDirs() const
 {
+    Q_D(const CompilerFilterStrategy);
+
     QVector<QString> ret;
     ret.reserve(d->m_currentDirs.size());
-    foreach (const auto& path, d->m_currentDirs) {
+    for (const auto& path : qAsConst(d->m_currentDirs)) {
         ret << path.pathOrUrl();
     }
     return ret;
@@ -160,6 +162,8 @@ QVector<QString> CompilerFilterStrategy::currentDirs() const
 
 FilteredItem CompilerFilterStrategy::actionInLine(const QString& line)
 {
+    Q_D(CompilerFilterStrategy);
+
     // A list of filters for possible compiler, linker, and make actions
     static const ActionFormat ACTION_FILTERS[] = {
         ActionFormat( 2,
@@ -233,6 +237,8 @@ FilteredItem CompilerFilterStrategy::actionInLine(const QString& line)
 
 FilteredItem CompilerFilterStrategy::errorInLine(const QString& line)
 {
+    Q_D(CompilerFilterStrategy);
+
     // All the possible string that indicate an error if we via Regex have been able to
     // extract file and linenumber from a given outputline
     // TODO: This seems clumsy -- and requires another scan of the line.
@@ -279,7 +285,7 @@ FilteredItem CompilerFilterStrategy::errorInLine(const QString& line)
         // cmake/automoc
         // example: AUTOMOC: error: /foo/bar.cpp The file includes (...),
         // example: AUTOMOC: error: /foo/bar.cpp: The file includes (...)
-        // note: ':' after file name isn't always appended, see http://cmake.org/gitweb?p=cmake.git;a=commitdiff;h=317d8498aa02c9f486bf5071963bb2034777cdd6
+        // note: ':' after file name isn't always appended, see https://cmake.org/gitweb?p=cmake.git;a=commitdiff;h=317d8498aa02c9f486bf5071963bb2034777cdd6
         // example: AUTOGEN: error: /foo/bar.cpp: The file includes (...)
         // note: AUTOMOC got renamed to AUTOGEN at some point
         ErrorFormat( QStringLiteral("^(AUTOMOC|AUTOGEN): error: (.*?) (The file .*)$"), 2, 0, 0 ),

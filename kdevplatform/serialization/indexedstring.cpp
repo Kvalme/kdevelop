@@ -30,6 +30,8 @@ struct IndexedStringData
     unsigned short length;
     uint refCount;
 
+    IndexedStringData& operator=(const IndexedStringData& rhs) = delete;
+
     uint itemSize() const
     {
         return sizeof(IndexedStringData) + length;
@@ -92,8 +94,8 @@ struct IndexedStringRepositoryItemRequest
     {
         item->length = m_length;
         item->refCount = 0;
-        ++item;
-        memcpy(item, m_text, m_length);
+        void* itemText = reinterpret_cast<void*>(item + 1);
+        memcpy(itemText, m_text, m_length);
     }
 
     static void destroy(IndexedStringData* item, AbstractItemRepository&)

@@ -338,10 +338,11 @@ void MIVariable::formatChanged()
 {
     if(childCount())
     {
-        foreach(TreeItem* item, childItems) {
+        for (TreeItem* item : qAsConst(childItems)) {
             Q_ASSERT(dynamic_cast<MIVariable*>(item));
-            if( auto* var=dynamic_cast<MIVariable*>(item))
+            if (auto* var = qobject_cast<MIVariable*>(item)) {
                 var->setFormat(format());
+            }
         }
     }
     else

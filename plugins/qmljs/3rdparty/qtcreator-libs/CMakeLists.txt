@@ -67,10 +67,12 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang
     add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-implicit-fallthrough")
     add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-overloaded-virtual")
     add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-zero-as-null-pointer-constant")
+    add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-deprecated-declarations")
 endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
    add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-suggest-override")
    add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-class-memaccess")
+   add_target_compile_flag_if_supported(kdevqtc-qmlsupport PRIVATE "-Wno-deprecated-copy")
 endif()
 
 target_compile_definitions(kdevqtc-qmlsupport PUBLIC -DLANGUAGEUTILS_LIBRARY -DUTILS_LIBRARY -DQT_CREATOR -DQML_BUILD_STATIC_LIB)

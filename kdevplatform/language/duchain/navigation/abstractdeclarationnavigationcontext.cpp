@@ -56,8 +56,10 @@ AbstractDeclarationNavigationContext::AbstractDeclarationNavigationContext(const
                                                                            AbstractNavigationContext* previousContext)
     : AbstractNavigationContext((topContext ? topContext : TopDUContextPointer(
                                      decl ? decl->topContext() : nullptr)), previousContext)
-    , d(new AbstractDeclarationNavigationContextPrivate)
+    , d_ptr(new AbstractDeclarationNavigationContextPrivate)
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     d->m_declaration = decl;
 
     //Jump from definition to declaration if possible
@@ -72,6 +74,8 @@ AbstractDeclarationNavigationContext::~AbstractDeclarationNavigationContext()
 
 QString AbstractDeclarationNavigationContext::name() const
 {
+    Q_D(const AbstractDeclarationNavigationContext);
+
     if (d->m_declaration.data())
         return prettyQualifiedIdentifier(d->m_declaration).toString();
     else
@@ -80,6 +84,8 @@ QString AbstractDeclarationNavigationContext::name() const
 
 QString AbstractDeclarationNavigationContext::html(bool shorten)
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     DUChainReadLocker lock(DUChain::lock(), 300);
     if (!lock.locked()) {
         return {};
@@ -374,6 +380,8 @@ AbstractType::Ptr AbstractDeclarationNavigationContext::typeToShow(AbstractType:
 
 void AbstractDeclarationNavigationContext::htmlFunction()
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     const auto* function =
         dynamic_cast<const AbstractFunctionDeclaration*>(d->m_declaration.data());
     Q_ASSERT(function);
@@ -408,7 +416,8 @@ void AbstractDeclarationNavigationContext::htmlFunction()
         if (DUContext* argumentContext = DUChainUtils::argumentContext(d->m_declaration.data())) {
             decls = argumentContext->localDeclarations(topContext().data());
         }
-        foreach (const AbstractType::Ptr& argType, type->arguments()) {
+        const auto argTypes = type->arguments();
+        for (const AbstractType::Ptr& argType : argTypes) {
             if (!first)
                 modifyHtml() += QStringLiteral(", ");
             first = false;
@@ -467,6 +476,8 @@ QString AbstractDeclarationNavigationContext::prettyQualifiedName(const Declarat
 
 void AbstractDeclarationNavigationContext::htmlAdditionalNavigation()
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     ///Check if the function overrides or hides another one
     const auto* classFunDecl =
         dynamic_cast<const ClassFunctionDeclaration*>(d->m_declaration.data());
@@ -487,7 +498,8 @@ void AbstractDeclarationNavigationContext::htmlAdditionalNavigation()
         } else {
             //Check if this declarations hides other declarations
             QList<Declaration*> decls;
-            foreach (const DUContext::Import& import, d->m_declaration->context()->importedParentContexts())
+            const auto importedParentContexts = d->m_declaration->context()->importedParentContexts();
+            for (const DUContext::Import& import : importedParentContexts) {
                 if (import.context(topContext().data()))
                     decls +=
                         import.context(topContext().data())->findDeclarations(QualifiedIdentifier(d->m_declaration->
@@ -496,9 +508,10 @@ void AbstractDeclarationNavigationContext::htmlAdditionalNavigation()
                                                                               AbstractType::Ptr(),
                                                                               topContext().data(),
                                                                               DUContext::DontSearchInParent);
+            }
 
             uint num = 0;
-            foreach (Declaration* decl, decls) {
+            for (Declaration* decl : qAsConst(decls)) {
                 modifyHtml() += i18n("Hides a ");
                 makeLink(i18n("function"), QStringLiteral("jump_to_hide_%1").arg(num),
                          NavigationAction(DeclarationPointer(decl),
@@ -579,6 +592,8 @@ void AbstractDeclarationNavigationContext::createFullBackwardSearchLink(const QS
 
 NavigationContextPointer AbstractDeclarationNavigationContext::executeKeyAction(const QString& key)
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     if (key == QLatin1String("m_fullBackwardSearch=true")) {
         d->m_fullBackwardSearch = true;
         clear();
@@ -588,6 +603,8 @@ NavigationContextPointer AbstractDeclarationNavigationContext::executeKeyAction(
 
 void AbstractDeclarationNavigationContext::htmlClass()
 {
+    Q_D(AbstractDeclarationNavigationContext);
+
     StructureType::Ptr klass = d->m_declaration->abstractType().cast<StructureType>();
     Q_ASSERT(klass);
 
@@ -716,6 +733,8 @@ void AbstractDeclarationNavigationContext::eventuallyMakeTypeLinks(AbstractType:
 
 DeclarationPointer AbstractDeclarationNavigationContext::declaration() const
 {
+    Q_D(const AbstractDeclarationNavigationContext);
+
     return d->m_declaration;
 }
 

@@ -160,7 +160,7 @@ void PatchReviewPlugin::addHighlighting( const QUrl& highlightFile, IDocument* d
 
             removeHighlighting( file );
 
-            m_highlighters[file] = new PatchHighlighter( model, doc, this, dynamic_cast<LocalPatchSource*>(m_patch.data()) == nullptr );
+            m_highlighters[file] = new PatchHighlighter(model, doc, this, (qobject_cast<LocalPatchSource*>(m_patch.data()) == nullptr));
         }
     } catch ( const QString & str ) {
         qCDebug(PLUGIN_PATCHREVIEW) << "highlightFile():" << str;
@@ -216,7 +216,7 @@ void PatchReviewPlugin::notifyPatchChanged() {
 void PatchReviewPlugin::forceUpdate() {
     if( m_patch ) {
         // don't trigger an update if we know the plugin cannot update itself
-        auto *vcsPatch = dynamic_cast<VCSDiffPatchSource*>(m_patch.data());
+        auto* vcsPatch = qobject_cast<VCSDiffPatchSource*>(m_patch.data());
         if (!vcsPatch || vcsPatch->m_updater) {
             m_patch->update();
             notifyPatchChanged();
@@ -365,7 +365,7 @@ void PatchReviewPlugin::closeReview()
             // Revert modifications to the text document which we've done in updateReview
             patchDocument->setPrettyName( QString() );
             patchDocument->textDocument()->setReadWrite( true );
-            auto* modif = dynamic_cast<KTextEditor::ModificationInterface*>( patchDocument->textDocument() );
+            auto* modif = qobject_cast<KTextEditor::ModificationInterface*>(patchDocument->textDocument());
             modif->setModifiedOnDiskWarning( true );
         }
 
@@ -373,7 +373,7 @@ void PatchReviewPlugin::closeReview()
         m_modelList.reset( nullptr );
         m_depth = 0;
 
-        if( !dynamic_cast<LocalPatchSource*>( m_patch.data() ) ) {
+        if (!qobject_cast<LocalPatchSource*>(m_patch.data())) {
             // make sure "show" button still openes the file dialog to open a custom patch file
             setPatch( new LocalPatchSource );
         } else
@@ -410,7 +410,8 @@ void PatchReviewPlugin::startReview( IPatchSource* patch, IPatchReview::ReviewMo
 
 void PatchReviewPlugin::switchToEmptyReviewArea()
 {
-    foreach(Sublime::Area* area, ICore::self()->uiController()->allAreas()) {
+    const auto allAreas = ICore::self()->uiController()->allAreas();
+    for (Sublime::Area* area : allAreas) {
         if (area->objectName() == QLatin1String("review")) {
             area->clearDocuments();
         }
@@ -427,7 +428,7 @@ QUrl PatchReviewPlugin::urlForFileModel( const Diff2::DiffModel* model )
     if (destPath.size() >= (int)m_depth) {
         destPath.remove(0, m_depth);
     }
-    foreach(const QString& segment, destPath) {
+    for (const QString& segment : qAsConst(destPath)) {
         path.addPath(segment);
     }
     path.addPath(model->destinationFile());
@@ -459,7 +460,7 @@ void PatchReviewPlugin::updateReview()
 
     futureActiveDoc->textDocument()->setReadWrite( false );
     futureActiveDoc->setPrettyName( i18n( "Overview" ) );
-    auto* modif = dynamic_cast<KTextEditor::ModificationInterface*>( futureActiveDoc->textDocument() );
+    auto* modif = qobject_cast<KTextEditor::ModificationInterface*>(futureActiveDoc->textDocument());
     modif->setModifiedOnDiskWarning( false );
 
     docController->activateDocument( futureActiveDoc );
@@ -536,7 +537,8 @@ PatchReviewPlugin::PatchReviewPlugin( QObject *parent, const QVariantList & )
     actionCollection()->setDefaultShortcut( m_finishReview, Qt::CTRL|Qt::Key_Return );
     actionCollection()->addAction(QStringLiteral("commit_or_finish_review"), m_finishReview);
 
-    foreach(Sublime::Area* area, ICore::self()->uiController()->allAreas()) {
+    const auto allAreas = ICore::self()->uiController()->allAreas();
+    for (Sublime::Area* area : allAreas) {
         if (area->objectName() == QLatin1String("review"))
             area->addAction(m_finishReview);
     }
@@ -557,8 +559,9 @@ void PatchReviewPlugin::documentSaved( IDocument* doc ) {
     // Also, don't automatically update local patch sources, because
     // they may correspond to static files which don't match any more
     // after an edit was done.
-    if( m_patch && doc->url() != m_patch->file() && !dynamic_cast<LocalPatchSource*>(m_patch.data()) )
+    if (m_patch && doc->url() != m_patch->file() && !qobject_cast<LocalPatchSource*>(m_patch.data())) {
         forceUpdate();
+    }
 }
 
 void PatchReviewPlugin::textDocumentCreated( IDocument* doc ) {
@@ -591,7 +594,8 @@ KDevelop::ContextMenuExtension PatchReviewPlugin::contextMenuExtension(KDevelop:
         urls = filectx->urls();
     } else if ( context->type() == KDevelop::Context::ProjectItemContext ) {
         auto* projctx = static_cast<KDevelop::ProjectItemContext*>(context);
-        foreach( KDevelop::ProjectBaseItem* item, projctx->items() ) {
+        const auto items = projctx->items();
+        for (KDevelop::ProjectBaseItem* item : items) {
             if ( item->file() ) {
                 urls << item->file()->path().toUrl();
             }

@@ -30,6 +30,9 @@ using namespace KDevelop;
 struct StringData
 {
     unsigned short length;
+
+    StringData& operator=(const StringData& rhs) = delete;
+
     unsigned int itemSize() const
     {
         return sizeof(StringData) + length;
@@ -78,8 +81,8 @@ struct StringRepositoryItemRequest
     void createItem(StringData* item) const
     {
         item->length = m_length;
-        ++item;
-        memcpy(item, m_text, m_length);
+        void* itemText = reinterpret_cast<void*>(item + 1);
+        memcpy(itemText, m_text, m_length);
     }
 
     static void destroy(StringData*, KDevelop::AbstractItemRepository&)

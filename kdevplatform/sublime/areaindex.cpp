@@ -38,8 +38,9 @@ public:
     {
         delete first;
         delete second;
-        foreach( View* v, views )
-        {
+        // TODO: does this still make sense?
+        const auto oldViews = views;
+        for (View* v : oldViews) {
             // Do the same as AreaIndex::remove(), seems like deletion of the view is happening elsewhere
             views.removeAll( v );
         }
@@ -69,17 +70,24 @@ public:
 
 // class AreaIndex
 
-AreaIndex::AreaIndex() : d(new AreaIndexPrivate)
+AreaIndex::AreaIndex()
+    : d_ptr(new AreaIndexPrivate)
 {
 }
 
-AreaIndex::AreaIndex(AreaIndex *parent) : d(new AreaIndexPrivate)
+AreaIndex::AreaIndex(AreaIndex *parent)
+    : d_ptr(new AreaIndexPrivate)
 {
+    Q_D(AreaIndex);
+
     d->parent = parent;
 }
 
-AreaIndex::AreaIndex(const AreaIndex &index)  : d(new AreaIndexPrivate( *(index.d) ) )
+AreaIndex::AreaIndex(const AreaIndex &index)
+    : d_ptr(new AreaIndexPrivate(*(index.d_ptr)))
 {
+    Q_D(AreaIndex);
+
     qCDebug(SUBLIME) << "copying area index";
     if (d->first)
         d->first->setParent(this);
@@ -87,14 +95,17 @@ AreaIndex::AreaIndex(const AreaIndex &index)  : d(new AreaIndexPrivate( *(index.
         d->second->setParent(this);
     //clone views in this index
     d->views.clear();
-    foreach (View *view, index.views())
+    for (View* view : qAsConst(index.views())) {
         add(view->document()->createView());
+    }
 }
 
 AreaIndex::~AreaIndex() = default;
 
 void AreaIndex::add(View *view, View *after)
 {
+    Q_D(AreaIndex);
+
     //we can not add views to the areas that have already been split
     if (d->isSplit())
         return;
@@ -107,6 +118,8 @@ void AreaIndex::add(View *view, View *after)
 
 void AreaIndex::remove(View *view)
 {
+    Q_D(AreaIndex);
+
     if (d->isSplit())
         return;
 
@@ -117,6 +130,8 @@ void AreaIndex::remove(View *view)
 
 void AreaIndex::split(Qt::Orientation orientation, bool moveViewsToSecond)
 {
+    Q_D(AreaIndex);
+
     //we can not split areas that have already been split
     if (d->isSplit())
         return;
@@ -133,6 +148,8 @@ void AreaIndex::split(Qt::Orientation orientation, bool moveViewsToSecond)
 
 void AreaIndex::split(View *newView, Qt::Orientation orientation)
 {
+    Q_D(AreaIndex);
+
     split(orientation);
 
     //make new view as second widget in splitter
@@ -141,6 +158,8 @@ void AreaIndex::split(View *newView, Qt::Orientation orientation)
 
 void AreaIndex::unsplit(AreaIndex *childToRemove)
 {
+    Q_D(AreaIndex);
+
     if (!d->isSplit())
         return;
 
@@ -157,12 +176,14 @@ void AreaIndex::unsplit(AreaIndex *childToRemove)
 
 void AreaIndex::copyChildrenTo(AreaIndex *target)
 {
+    Q_D(AreaIndex);
+
     if (!d->first || !d->second)
         return;
-    target->d->first = d->first;
-    target->d->second = d->second;
-    target->d->first->setParent(target);
-    target->d->second->setParent(target);
+    target->d_ptr->first = d->first;
+    target->d_ptr->second = d->second;
+    target->d_ptr->first->setParent(target);
+    target->d_ptr->second->setParent(target);
 
     d->first = nullptr;
     d->second = nullptr;
@@ -170,62 +191,95 @@ void AreaIndex::copyChildrenTo(AreaIndex *target)
 
 void AreaIndex::moveViewsTo(AreaIndex *target)
 {
-    target->d->views = d->views;
+    Q_D(AreaIndex);
+
+    target->d_ptr->views = d->views;
     d->views.clear();
 }
 
-QList<View*> &AreaIndex::views() const
+void AreaIndex::moveViewPosition(View* view, int newPos)
 {
+    Q_D(AreaIndex);
+
+    const auto oldPos = d->views.indexOf(view);
+
+    d->views.move(oldPos, newPos);
+}
+
+const QList<View*>& AreaIndex::views() const
+{
+    Q_D(const AreaIndex);
+
     return d->views;
 }
 
 View *AreaIndex::viewAt(int position) const
 {
+    Q_D(const AreaIndex);
+
     return d->views.value(position, nullptr);
 }
 
 int AreaIndex::viewCount() const
 {
+    Q_D(const AreaIndex);
+
     return d->views.count();
 }
 
 bool AreaIndex::hasView(View *view) const
 {
+    Q_D(const AreaIndex);
+
     return d->views.contains(view);
 }
 
 AreaIndex *AreaIndex::parent() const
 {
+    Q_D(const AreaIndex);
+
     return d->parent;
 }
 
 void AreaIndex::setParent(AreaIndex *parent)
 {
+    Q_D(AreaIndex);
+
     d->parent = parent;
 }
 
 AreaIndex *AreaIndex::first() const
 {
+    Q_D(const AreaIndex);
+
     return d->first;
 }
 
 AreaIndex *AreaIndex::second() const
 {
+    Q_D(const AreaIndex);
+
     return d->second;
 }
 
 Qt::Orientation AreaIndex::orientation() const
 {
+    Q_D(const AreaIndex);
+
     return d->orientation;
 }
 
 bool Sublime::AreaIndex::isSplit() const
 {
+    Q_D(const AreaIndex);
+
     return d->isSplit();
 }
 
-void Sublime::AreaIndex::setOrientation(Qt::Orientation orientation) const
+void Sublime::AreaIndex::setOrientation(Qt::Orientation orientation)
 {
+    Q_D(AreaIndex);
+
     d->orientation = orientation;
 }
 

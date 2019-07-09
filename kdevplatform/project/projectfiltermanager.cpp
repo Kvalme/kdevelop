@@ -131,16 +131,19 @@ void ProjectFilterManagerPrivate::filterChanged(IProjectFilterProvider* provider
 //BEGIN
 ProjectFilterManager::ProjectFilterManager(QObject* parent)
     : QObject(parent)
-    , d(new ProjectFilterManagerPrivate)
+    , d_ptr(new ProjectFilterManagerPrivate)
 {
+    Q_D(ProjectFilterManager);
+
     d->q = this;
 
     connect(ICore::self()->pluginController(), &IPluginController::pluginLoaded,
-            this, [&] (IPlugin* plugin) { d->pluginLoaded(plugin); });
+            this, [this] (IPlugin* plugin) {  Q_D(ProjectFilterManager);d->pluginLoaded(plugin); });
     connect(ICore::self()->pluginController(), &IPluginController::unloadingPlugin,
-            this, [&] (IPlugin* plugin) { d->unloadingPlugin(plugin); });
+            this, [this] (IPlugin* plugin) {  Q_D(ProjectFilterManager);d->unloadingPlugin(plugin); });
 
-    foreach(IPlugin* plugin, ICore::self()->pluginController()->loadedPlugins()) {
+    const auto plugins = ICore::self()->pluginController()->loadedPlugins();
+    for (IPlugin* plugin : plugins) {
         d->pluginLoaded(plugin);
     }
 }
@@ -152,9 +155,11 @@ ProjectFilterManager::~ProjectFilterManager()
 
 void ProjectFilterManager::add(IProject* project)
 {
+    Q_D(ProjectFilterManager);
+
     QVector<Filter> filters;
     filters.reserve(d->m_filterProvider.size());
-    foreach(IProjectFilterProvider* provider, d->m_filterProvider) {
+    for (IProjectFilterProvider* provider : qAsConst(d->m_filterProvider)) {
         Filter filter;
         filter.provider = provider;
         filter.filter = provider->createFilter(project);
@@ -165,26 +170,32 @@ void ProjectFilterManager::add(IProject* project)
 
 void ProjectFilterManager::remove(IProject* project)
 {
+    Q_D(ProjectFilterManager);
+
     d->m_filters.remove(project);
 }
 
 bool ProjectFilterManager::isManaged(IProject* project) const
 {
+    Q_D(const ProjectFilterManager);
+
     return d->m_filters.contains(project);
 }
 
 bool ProjectFilterManager::isValid(const Path& path, bool isFolder, IProject* project) const
 {
-    foreach(const Filter& filter, d->m_filters[project]) {
-        if (!filter.filter->isValid(path, isFolder)) {
-            return false;
-        }
-    }
-    return true;
+    Q_D(const ProjectFilterManager);
+
+    const auto filters = d->m_filters[project];
+    return std::all_of(filters.begin(), filters.end(), [&](const Filter& filter) {
+        return (filter.filter->isValid(path, isFolder));
+    });
 }
 
 QVector< QSharedPointer< IProjectFilter > > ProjectFilterManager::filtersForProject(IProject* project) const
 {
+    Q_D(const ProjectFilterManager);
+
     QVector< QSharedPointer< IProjectFilter > > ret;
     const QVector<Filter>& filters = d->m_filters[project];
     ret.reserve(filters.size());

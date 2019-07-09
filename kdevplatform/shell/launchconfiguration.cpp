@@ -56,8 +56,10 @@ QString LaunchConfiguration::LaunchConfigurationTypeEntry()
 LaunchConfiguration::LaunchConfiguration(const KConfigGroup& grp, IProject* project, QObject* parent )
     : QObject(parent)
     , ILaunchConfiguration()
-    , d(new LaunchConfigurationPrivate(grp, project))
+    , d_ptr(new LaunchConfigurationPrivate(grp, project))
 {
+    Q_D(LaunchConfiguration);
+
     d->type = Core::self()->runControllerInternal()->launchConfigurationTypeForId(grp.readEntry(LaunchConfigurationTypeEntry(), QString()));
 }
 
@@ -67,31 +69,43 @@ LaunchConfiguration::~LaunchConfiguration()
 
 KConfigGroup LaunchConfiguration::config()
 {
+    Q_D(LaunchConfiguration);
+
     return d->baseGroup.group("Data");
 }
 
 const KConfigGroup LaunchConfiguration::config() const
 {
+    Q_D(const LaunchConfiguration);
+
     return d->baseGroup.group("Data");
 }
 
 QString LaunchConfiguration::name() const
 {
+    Q_D(const LaunchConfiguration);
+
     return d->baseGroup.readEntry(LaunchConfigurationNameEntry(), QString());
 }
 
 IProject* LaunchConfiguration::project() const
 {
+    Q_D(const LaunchConfiguration);
+
     return d->project;
 }
 
 LaunchConfigurationType* LaunchConfiguration::type() const
 {
+    Q_D(const LaunchConfiguration);
+
     return d->type;
 }
 
 void LaunchConfiguration::setName(const QString& name)
 {
+    Q_D(LaunchConfiguration);
+
     d->baseGroup.writeEntry(LaunchConfigurationNameEntry(), name);
     d->baseGroup.sync();
     emit nameChanged( this );
@@ -99,6 +113,8 @@ void LaunchConfiguration::setName(const QString& name)
 
 void LaunchConfiguration::setType(const QString& typeId)
 {
+    Q_D(LaunchConfiguration);
+
     LaunchConfigurationType* t = Core::self()->runControllerInternal()->launchConfigurationTypeForId( typeId );
     // If this ever happens something seriously screwed in the launch config dialog, as that is 
     // the only place from where this method should be called
@@ -115,28 +131,33 @@ void LaunchConfiguration::setType(const QString& typeId)
 
 void LaunchConfiguration::save()
 {
+    Q_D(LaunchConfiguration);
+
     d->baseGroup.sync();
 }
 
 QString LaunchConfiguration::configGroupName() const
 {
+    Q_D(const LaunchConfiguration);
+
     return d->baseGroup.name();
 }
 
 QString LaunchConfiguration::launcherForMode(const QString& mode) const
 {
+    Q_D(const LaunchConfiguration);
+
     QStringList modes = d->baseGroup.readEntry("Configured Launch Modes", QStringList());
     int idx = modes.indexOf( mode );
     if( idx != -1 )
     {
-        QStringList launchers = d->baseGroup.readEntry("Configured Launchers", QStringList());
-        if( launchers.count() > idx )
-        {
-            foreach( ILauncher* l, type()->launchers() )
-            {
-                if( l->id() == launchers.at( idx ) )
-                {
-                    return launchers.at( idx );
+        const QStringList launcherIds = d->baseGroup.readEntry("Configured Launchers", QStringList());
+        if (launcherIds.count() > idx ) {
+            const auto& id = launcherIds.at(idx);
+            const auto typeLaunchers = type()->launchers();
+            for (ILauncher* l : typeLaunchers) {
+                if (l->id() == id) {
+                    return id;
                 }
             }
         }
@@ -145,8 +166,8 @@ QString LaunchConfiguration::launcherForMode(const QString& mode) const
     // No launcher configured, if it's debug mode, prefer GDB if available.
     if( mode == QLatin1String("debug") )
     {
-        foreach( ILauncher* l, type()->launchers() )
-        {
+        const auto launchers = type()->launchers();
+        for (ILauncher* l : launchers) {
             if( l->supportedModes().contains( mode ) && l->id() == QLatin1String("gdb") )
             {
                 return l->id();
@@ -154,8 +175,8 @@ QString LaunchConfiguration::launcherForMode(const QString& mode) const
         }
     }
     // Otherwise, lets just try with the first one in the list and hope it works
-    foreach( ILauncher* l, type()->launchers() )
-    {
+    const auto launchers = type()->launchers();
+    for (ILauncher* l : launchers) {
         if( l->supportedModes().contains( mode ) )
         {
             return l->id();
@@ -167,6 +188,8 @@ QString LaunchConfiguration::launcherForMode(const QString& mode) const
 
 void LaunchConfiguration::setLauncherForMode(const QString& mode, const QString& id)
 {
+    Q_D(LaunchConfiguration);
+
     QStringList modes = d->baseGroup.readEntry("Configured Launch Modes", QStringList());
     int idx = modes.indexOf( mode );
     if( idx == -1 )

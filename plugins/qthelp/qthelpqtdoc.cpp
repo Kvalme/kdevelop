@@ -67,7 +67,7 @@ void QtHelpQtDoc::registerDocumentations()
         p->setProgram(qmake);
         p->setArguments({QLatin1String("-query"), QLatin1String("QT_INSTALL_DOCS")});
         p->start();
-        connect(p, QOverload<int>::of(&QProcess::finished), this, &QtHelpQtDoc::lookupDone);
+        connect(p, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, &QtHelpQtDoc::lookupDone);
     }
 }
 
@@ -109,7 +109,8 @@ void QtHelpQtDoc::loadDocumentation()
 
 void QtHelpQtDoc::unloadDocumentation()
 {
-    foreach(const QString &fileName, qchFiles()) {
+    const auto fileNames = qchFiles();
+    for (const QString& fileName : fileNames) {
         QString fileNamespace = QHelpEngineCore::namespaceName(fileName);
         if(!fileName.isEmpty() && m_engine.registeredDocumentations().contains(fileNamespace)) {
             m_engine.unregisterDocumentation(fileName);
@@ -131,7 +132,8 @@ QStringList QtHelpQtDoc::qchFiles() const
         if(path.isEmpty() || !d.exists()) {
             continue;
         }
-        foreach(const auto& file, d.entryInfoList(QDir::Files)) {
+        const auto fileInfos = d.entryInfoList(QDir::Files);
+        for (const auto& file : fileInfos) {
             files << file.absoluteFilePath();
         }
     }

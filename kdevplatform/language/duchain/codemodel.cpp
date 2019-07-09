@@ -98,6 +98,8 @@ public:
         freeAppendedLists();
     }
 
+    CodeModelRepositoryItem& operator=(const CodeModelRepositoryItem& rhs) = delete;
+
     unsigned int hash() const
     {
         //We only compare the declaration. This allows us implementing a map, although the item-repository
@@ -180,10 +182,12 @@ public:
     {
     }
     //Maps declaration-ids to items
-    ItemRepository<CodeModelRepositoryItem, CodeModelRequestItem> m_repository;
+    // mutable as things like findIndex are not const
+    mutable ItemRepository<CodeModelRepositoryItem, CodeModelRequestItem> m_repository;
 };
 
-CodeModel::CodeModel() : d(new CodeModelPrivate())
+CodeModel::CodeModel()
+    : d_ptr(new CodeModelPrivate())
 {
 }
 
@@ -191,6 +195,8 @@ CodeModel::~CodeModel() = default;
 
 void CodeModel::addItem(const IndexedString& file, const IndexedQualifiedIdentifier& id, CodeModelItem::Kind kind)
 {
+    Q_D(CodeModel);
+
     ifDebug(qCDebug(LANGUAGE) << "addItem" << file.str() << id.identifier().toString() << id.index; )
 
     if (!id.isValid())
@@ -257,6 +263,8 @@ void CodeModel::addItem(const IndexedString& file, const IndexedQualifiedIdentif
 
 void CodeModel::updateItem(const IndexedString& file, const IndexedQualifiedIdentifier& id, CodeModelItem::Kind kind)
 {
+    Q_D(CodeModel);
+
     ifDebug(qCDebug(LANGUAGE) << file.str() << id.identifier().toString() << kind; )
 
     if (!id.isValid())
@@ -297,6 +305,8 @@ void CodeModel::updateItem(const IndexedString& file, const IndexedQualifiedIden
 void CodeModel::removeItem(const IndexedString& file, const IndexedQualifiedIdentifier& id)
 //void CodeModel::removeDeclaration(const QualifiedIdentifier& id, const IndexedDeclaration& declaration)
 {
+    Q_D(CodeModel);
+
     if (!id.isValid())
         return;
 
@@ -357,6 +367,8 @@ void CodeModel::removeItem(const IndexedString& file, const IndexedQualifiedIden
 
 void CodeModel::items(const IndexedString& file, uint& count, const CodeModelItem*& items) const
 {
+    Q_D(const CodeModel);
+
     ifDebug(qCDebug(LANGUAGE) << "items" << file.str(); )
 
     CodeModelRepositoryItem item;

@@ -30,6 +30,8 @@ const QString BINARY_PATH(DEBUGGEE_BIN_DIR);
 
 class GdbProcess : private QProcess
 {
+    Q_OBJECT
+
 public:
     explicit GdbProcess(const QString &program) : QProcess()
     {
@@ -60,7 +62,7 @@ public:
           << "from kde import register_kde_printers"
           << "register_kde_printers (None)"
           << "end";
-        foreach (const QByteArray &i, p) {
+        for (const QByteArray& i : qAsConst(p)) {
             write(i + "\n");
         }
         waitForPrompt();
@@ -470,3 +472,5 @@ void QtPrintersTest::testKDevelopTypes()
 }
 
 QTEST_MAIN(QtPrintersTest)
+
+#include "test_gdbprinters.moc"

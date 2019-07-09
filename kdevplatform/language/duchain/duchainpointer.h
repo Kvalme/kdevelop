@@ -129,6 +129,8 @@ public:
             d = rhs->weakPointer();
     }
 
+    ~DUChainPointer() = default;
+
     bool operator ==(const DUChainPointer<Type>& rhs) const
     {
         return d.data() == rhs.d.data();
@@ -176,6 +178,8 @@ public:
             return nullptr;
         return static_cast<Type*>(d->base());
     }
+
+    DUChainPointer<Type>& operator=(const DUChainPointer<Type>& rhs) = default;
 
     DUChainPointer<Type>& operator=(Type* rhs)
     {

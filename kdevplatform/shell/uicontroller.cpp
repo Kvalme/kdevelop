@@ -219,7 +219,8 @@ private:
 };
 
 UiController::UiController(Core *core)
-    :Sublime::Controller(nullptr), IUiController(), d(new UiControllerPrivate(core, this))
+    : Sublime::Controller(nullptr), IUiController()
+    , d_ptr(new UiControllerPrivate(core, this))
 {
     setObjectName(QStringLiteral("UiController"));
 
@@ -227,7 +228,7 @@ UiController::UiController(Core *core)
         return;
 
     connect(qApp, &QApplication::focusChanged,
-            this, [&] (QWidget* old, QWidget* now) { d->widgetChanged(old, now); } );
+            this, [this] (QWidget* old, QWidget* now) { Q_D(UiController); d->widgetChanged(old, now); } );
 
     setupActions();
 }
@@ -266,8 +267,10 @@ void UiController::switchToArea(const QString &areaName, SwitchMode switchMode)
 #if 0
     //we need to add all existing guiclients to the new mainwindow
     //@todo adymo: add only ones that belong to the area (when the area code is there)
-    foreach (KXMLGUIClient *client, oldMain->guiFactory()->clients())
+    const auto clients = oldMain->guiFactory()->clients();
+    for (KXMLGUIClient *client : clients) {
         main->guiFactory()->addClient(client);
+    }
 #endif
 
     main->show();
@@ -276,12 +279,14 @@ void UiController::switchToArea(const QString &areaName, SwitchMode switchMode)
 
 QWidget* UiController::findToolView(const QString& name, IToolViewFactory *factory, FindFlags flags)
 {
+    Q_D(UiController);
+
     if(!d->areasRestored || !activeArea())
         return nullptr;
 
     const QList<Sublime::View*> views = activeArea()->toolViews();
     for (Sublime::View* view : views) {
-        auto *doc = dynamic_cast<Sublime::ToolDocument*>(view->document());
+        auto* doc = qobject_cast<Sublime::ToolDocument*>(view->document());
         if(doc && doc->title() == name && view->widget()) {
             if(flags & Raise)
                 view->requestRaise();
@@ -312,6 +317,8 @@ QWidget* UiController::findToolView(const QString& name, IToolViewFactory *facto
 
 void UiController::raiseToolView(QWidget* toolViewWidget)
 {
+    Q_D(UiController);
+
     if(!d->areasRestored)
         return;
 
@@ -326,6 +333,8 @@ void UiController::raiseToolView(QWidget* toolViewWidget)
 
 void UiController::addToolView(const QString & name, IToolViewFactory *factory, FindFlags state)
 {
+    Q_D(UiController);
+
     if (!factory)
         return;
 
@@ -336,7 +345,8 @@ void UiController::addToolView(const QString & name, IToolViewFactory *factory, 
     /* Until areas are restored, we don't know which views should be really
        added, and which not, so we just record view availability.  */
     if (d->areasRestored && state != None) {
-         foreach (Sublime::Area* area, allAreas()) {
+         const auto areas = allAreas();
+         for (Sublime::Area* area : areas) {
              addToolViewToArea(factory, doc, area);
          }
     }
@@ -344,7 +354,8 @@ void UiController::addToolView(const QString & name, IToolViewFactory *factory, 
 
 void KDevelop::UiController::raiseToolView(Sublime::View * view)
 {
-    foreach( Sublime::Area* area, allAreas() ) {
+    const auto areas = allAreas();
+    for (Sublime::Area* area : areas) {
         if( area->toolViews().contains( view ) )
             area->raiseToolView( view );
     }
@@ -360,7 +371,7 @@ void UiController::slotAreaChanged(Sublime::Area*)
     if (area) {
         // walk through shown tool views and maku sure the
         const auto shownIds = area->shownToolViews(Sublime::AllPositions);
-        foreach (Sublime::View* toolView, area->toolViews()) {
+        for (Sublime::View* toolView : qAsConst(area->toolViews())) {
             if (shownIds.contains(toolView->document()->documentSpecifier())) {
                 slotActiveToolViewChanged(toolView);
             }
@@ -370,6 +381,8 @@ void UiController::slotAreaChanged(Sublime::Area*)
 
 void UiController::slotActiveToolViewChanged(Sublime::View* view)
 {
+    Q_D(UiController);
+
     if (!view) {
         return;
     }
@@ -382,6 +395,8 @@ void UiController::slotActiveToolViewChanged(Sublime::View* view)
 
 void KDevelop::UiController::removeToolView(IToolViewFactory *factory)
 {
+    Q_D(UiController);
+
     if (!factory)
         return;
 
@@ -390,10 +405,12 @@ void KDevelop::UiController::removeToolView(IToolViewFactory *factory)
     Sublime::ToolDocument *doc = d->factoryDocuments.value(factory);
 
     ///@todo adymo: on document deletion all its views shall be also deleted
-    foreach (Sublime::View *view, doc->views()) {
-        foreach (Sublime::Area *area, allAreas())
+    for (Sublime::View* view : doc->views()) {
+        const auto areas = allAreas();
+        for (Sublime::Area *area : areas) {
             if (area->removeToolView(view))
                 view->deleteLater();
+        }
     }
 
     d->factoryDocuments.remove(factory);
@@ -410,11 +427,15 @@ Sublime::Area *UiController::activeArea()
 
 Sublime::MainWindow *UiController::activeSublimeWindow()
 {
+    Q_D(UiController);
+
     return d->activeSublimeWindow;
 }
 
 MainWindow *UiController::defaultMainWindow()
 {
+    Q_D(UiController);
+
     return d->defaultMainWindow;
 }
 
@@ -426,13 +447,16 @@ void UiController::initialize()
 
 void UiController::cleanup()
 {
-    foreach (Sublime::MainWindow* w, mainWindows())
+    for (Sublime::MainWindow* w : mainWindows()) {
         w->saveSettings();
+    }
     saveAllAreas(KSharedConfig::openConfig());
 }
 
 void UiController::selectNewToolViewToAdd(MainWindow *mw)
 {
+    Q_D(UiController);
+
     if (!mw || !mw->area())
         return;
 
@@ -470,8 +494,8 @@ void UiController::selectNewToolViewToAdd(MainWindow *mw)
 
     if (dia->exec() == QDialog::Accepted)
     {
-        foreach (QListWidgetItem* item, list->selectedItems())
-        {
+        const auto items = list->selectedItems();
+        for (QListWidgetItem* item : items) {
             addNewToolView(mw, item);
         }
     }
@@ -479,6 +503,8 @@ void UiController::selectNewToolViewToAdd(MainWindow *mw)
 
 void UiController::addNewToolView(MainWindow *mw, QListWidgetItem* item)
 {
+    Q_D(UiController);
+
     auto *current = static_cast<ViewSelectorItem*>(item);
     Sublime::ToolDocument *doc = d->factoryDocuments[current->factory];
     Sublime::View *view = doc->createView();
@@ -541,7 +567,7 @@ void UiController::showSettingsDialog()
     auto plugins = ICore::self()->pluginController()->loadedPlugins();
     std::sort(plugins.begin(), plugins.end());
 
-    foreach (IPlugin* plugin, plugins) {
+    for (IPlugin* plugin : qAsConst(plugins)) {
         addPluginPages(plugin);
     }
 
@@ -592,8 +618,7 @@ void UiController::saveAllAreas(const KSharedConfigPtr& config)
         KConfigGroup mainWindowConfig(&uiConfig,
                                       QStringLiteral("Main Window %1").arg(w));
 
-        foreach (Sublime::Area* defaultArea, defaultAreas())
-        {
+        for (Sublime::Area* defaultArea : defaultAreas()) {
             // FIXME: using object name seems ugly.
             QString type = defaultArea->objectName();
             Sublime::Area* area = this->area(w, type);
@@ -610,6 +635,8 @@ void UiController::saveAllAreas(const KSharedConfigPtr& config)
 
 void UiController::loadAllAreas(const KSharedConfigPtr& config)
 {
+    Q_D(UiController);
+
     KConfigGroup uiConfig(config, "User Interface");
     int wc = uiConfig.readEntry("Main Windows Count", 1);
 
@@ -619,8 +646,7 @@ void UiController::loadAllAreas(const KSharedConfigPtr& config)
         wc = mainWindows().size();
 
     /* Offer all tool views to the default areas.  */
-    foreach (Sublime::Area *area, defaultAreas())
-    {
+    for (Sublime::Area* area : defaultAreas()) {
         QHash<IToolViewFactory*, Sublime::ToolDocument*>::const_iterator i, e;
         for (i = d->factoryDocuments.constBegin(),
                  e = d->factoryDocuments.constEnd(); i != e; ++i)
@@ -643,8 +669,7 @@ void UiController::loadAllAreas(const KSharedConfigPtr& config)
            the model were a given mainwindow can has it's own
            area types not represented in the default set is way
            too complex.  */
-        foreach (Sublime::Area* defaultArea, defaultAreas())
-        {
+        for (Sublime::Area* defaultArea : defaultAreas()) {
             QString type = defaultArea->objectName();
             Sublime::Area* area = this->area(w, type);
 
@@ -682,6 +707,8 @@ void UiController::loadAllAreas(const KSharedConfigPtr& config)
 
 void UiController::addToolViewToDockArea(IToolViewFactory* factory, Qt::DockWidgetArea area)
 {
+    Q_D(UiController);
+
     addToolViewToArea(factory, d->factoryDocuments.value(factory), activeArea(), Sublime::dockAreaToPosition(area));
 }
 
@@ -740,11 +767,15 @@ void UiController::showErrorMessage(const QString& message, int timeout)
 
 const QHash< IToolViewFactory*, Sublime::ToolDocument* >& UiController::factoryDocuments() const
 {
+    Q_D(const UiController);
+
     return d->factoryDocuments;
 }
 
 QWidget* UiController::activeToolViewActionListener() const
 {
+    Q_D(const UiController);
+
     return d->activeActionListener;
 }
 

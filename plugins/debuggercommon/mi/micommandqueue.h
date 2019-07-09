@@ -53,7 +53,10 @@ private:
     void rationalizeQueue(MICommand* command);
     void removeVariableUpdates();
     void removeStackListUpdates();
-    void dumpQueue();
+    void dumpQueue() const;
+
+private:
+    Q_DISABLE_COPY(CommandQueue)
 
     QList<MICommand*> m_commandList;
     int m_immediatelyCounter = 0;

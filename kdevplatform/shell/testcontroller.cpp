@@ -34,7 +34,7 @@ public:
 
 TestController::TestController(QObject *parent)
 : ITestController(parent)
-, d(new TestControllerPrivate)
+, d_ptr(new TestControllerPrivate)
 {
 }
 
@@ -47,22 +47,30 @@ void TestController::initialize()
 
 void TestController::cleanup()
 {
+    Q_D(TestController);
+
     d->suites.clear();
 }
 
 QList<ITestSuite*> TestController::testSuites() const
 {
+    Q_D(const TestController);
+
     return d->suites;
 }
 
 void TestController::removeTestSuite(ITestSuite* suite)
 {
+    Q_D(TestController);
+
     d->suites.removeAll(suite);
     emit testSuiteRemoved(suite);
 }
 
 void TestController::addTestSuite(ITestSuite* suite)
 {
+    Q_D(TestController);
+
     if (ITestSuite* existingSuite = findTestSuite(suite->project(), suite->name()))
     {
         if (existingSuite == suite) {
@@ -78,22 +86,21 @@ void TestController::addTestSuite(ITestSuite* suite)
 
 ITestSuite* TestController::findTestSuite(IProject* project, const QString& name) const
 {
-    foreach (ITestSuite* suite, testSuitesForProject(project))
-    {
-        if (suite->name() == name)
-        {
-            return suite;
-        }
-    }
-    return nullptr;
+    const auto suites = testSuitesForProject(project);
+    auto it = std::find_if(suites.begin(), suites.end(), [&](ITestSuite* suite) {
+        return (suite->name() == name);
+    });
+
+    return (it != suites.end()) ? *it : nullptr;
 }
 
 
 QList< ITestSuite* > TestController::testSuitesForProject(IProject* project) const
 {
+    Q_D(const TestController);
+
     QList<ITestSuite*> suites;
-    foreach (ITestSuite* suite, d->suites)
-    {
+    for (ITestSuite* suite : qAsConst(d->suites)) {
         if (suite->project() == project)
         {
             suites << suite;
