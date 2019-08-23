@@ -277,23 +277,29 @@ bool DebugSession::loadCoreFile(KDevelop::ILaunchConfiguration*,
 
 void DebugSession::handleVersion(const QStringList& s)
 {
-    qCDebug(DEBUGGERGDB) << s.first();
     // minimal version is 7.0,0
     QRegExp rx(QStringLiteral("([7-9]+)\\.([0-9]+)(\\.([0-9]+))?"));
-    int idx = rx.indexIn(s.first());
-    if (idx == -1)
+    for (const QString &str : s)
     {
-        if (!qobject_cast<QGuiApplication*>(qApp))  {
-            //for unittest
-            qFatal("You need a graphical application.");
-        }
+        qCDebug(DEBUGGERGDB) << str;
+        if (str.contains(QStringLiteral("GNU gdb"))) //Skip till we have version string
+        {
+            int idx = rx.indexIn(str);
+            if (idx == -1)
+            {
+                if (!qobject_cast<QGuiApplication*>(qApp))  {
+                    //for unittest
+                    qFatal("You need a graphical application.");
+                }
 
-        KMessageBox::error(
-            qApp->activeWindow(),
-            i18n("<b>You need gdb 7.0.0 or higher.</b><br />"
-            "You are using: %1", s.first()),
-            i18n("gdb error"));
-        stopDebugger();
+                KMessageBox::error(
+                    qApp->activeWindow(),
+                                   i18n("<b>You need gdb 7.0.0 or higher.</b><br />"
+                                   "You are using: %1", s.first()),
+                                   i18n("gdb error"));
+                stopDebugger();
+            }
+        }
     }
 }
 
