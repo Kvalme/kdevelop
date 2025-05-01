@@ -13,6 +13,7 @@
 #include <KMessageBox>
 #include <KJobWidgets>
 #include <KIO/DeleteJob>
+#include <KLineEdit>
 
 #include <QFile>
 #include <QDir>
@@ -180,7 +181,8 @@ void CMakePreferences::configureCacheView()
     m_prefsUi->cacheList->hideColumn(3);
     m_prefsUi->cacheList->hideColumn(4);
     m_prefsUi->cacheList->hideColumn(5);
-    m_prefsUi->cacheList->horizontalHeader()->resizeSection(0, 200);
+    m_prefsUi->cacheList->horizontalHeader()->resizeSections(QHeaderView::ResizeToContents);
+    //m_prefsUi->cacheList->horizontalHeader()->resizeSection(0, 200);
 
     if( m_currentModel ) {
         m_prefsUi->cacheList->setEnabled( true );
@@ -212,6 +214,8 @@ void CMakePreferences::updateCache(const Path &newBuildDir)
                 this, &CMakePreferences::configureCacheView);
         connect(m_prefsUi->cacheList->selectionModel(), &QItemSelectionModel::currentChanged,
                 this, &CMakePreferences::listSelectionChanged);
+        connect(m_prefsUi->cacheFilter, &KLineEdit::textChanged,
+                this, &CMakePreferences::filter);
         connect(m_currentModel, &CMakeCacheModel::valueChanged, this,
                 [this](const QString& name, const QString& value) {
                     if (name == QLatin1String("CMAKE_BUILD_TYPE")) {
@@ -407,5 +411,23 @@ QIcon CMakePreferences::icon() const
 {
     return QIcon::fromTheme(QStringLiteral("cmake"));
 }
+
+void CMakePreferences::filter(QString filter)
+{
+    if(!m_currentModel)
+        return;
+
+    bool showAdv = m_prefsUi->advancedBox->isChecked();
+    for(int i = 0; i < m_currentModel->rowCount(); i++)
+    {
+        bool hidden = m_currentModel->isInternal(i) || (!showAdv && m_currentModel->isAdvanced(i));
+        QString name = m_currentModel->key(i);
+
+        hidden |= (name.indexOf(filter, 0, Qt::CaseInsensitive) == -1);
+        m_prefsUi->cacheList->setRowHidden(i, hidden);
+    }
+
+}
+
 
 #include "moc_cmakepreferences.cpp"

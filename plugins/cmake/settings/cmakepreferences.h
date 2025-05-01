@@ -47,6 +47,8 @@ class CMakePreferences : public KDevelop::ConfigPage
         void removeBuildDir();
         void showAdvanced(bool v);
         void configureCacheView();
+        void filter(QString);
+
     private:
         void configure();
         void initAdvanced();
@@ -59,6 +61,7 @@ class CMakePreferences : public KDevelop::ConfigPage
         Ui::CMakeBuildSettings* m_prefsUi;
         CMakeCacheModel* m_currentModel;
         CMakeExtraArgumentsHistory* m_extraArgumentsHistory;
+        bool m_showAdvanced;
 };
 
 #endif

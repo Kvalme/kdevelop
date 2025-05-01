@@ -30,6 +30,7 @@ class CMakeCacheModel : public QStandardItemModel
         int internal() const { return m_internalBegin; }
         
         QString value(const QString& name) const;
+        QString key(int i) const;
         bool isAdvanced(int i) const;
         bool isInternal(int i) const;
         
@@ -43,7 +44,7 @@ class CMakeCacheModel : public QStandardItemModel
 
     public Q_SLOTS:
         void reset();
-        
+
     private:
         KDevelop::Path m_filePath;
         int m_internalBegin;

@@ -170,6 +170,17 @@ QString CMakeCacheModel::value(const QString & varName) const
     return QString();
 }
 
+QString CMakeCacheModel::key(int i) const
+{
+    QStandardItem* name = item(i, 0);
+    if (name) {
+        return name->text();
+    }
+
+    return QString();
+}
+
+
 bool CMakeCacheModel::isAdvanced(int i) const
 {
     QStandardItem *p=item(i, 4);
